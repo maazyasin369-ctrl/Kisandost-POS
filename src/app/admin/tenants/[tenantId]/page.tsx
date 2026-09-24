@@ -277,10 +277,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
         {/* Page Header with Back Button */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <nav className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 mb-1">
+            <nav className="flex items-center gap-1.5 text-2xs font-medium text-slate-400 mb-1">
               <Link href="/admin/tenants" className="hover:underline text-slate-500">Registered Tenant Shops</Link>
               <ChevronRight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-extrabold">{tenant.business_name}</span>
+              <span className="text-slate-900 font-semibold">{tenant.business_name}</span>
             </nav>
             <div className="flex items-center gap-3">
               <Link
@@ -293,7 +293,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 {tenant.business_name}
               </h1>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 font-normal mt-1">
               Per-tenant server-enforced feature module toggles, outlet settings, and license configuration (ID: <code className="font-mono text-emerald-800">{tenant.id}</code>)
             </p>
           </div>
@@ -317,14 +317,14 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   SUBSCRIPTION: {status.toUpperCase()}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 mt-1">
-                Owner: <strong className="text-slate-900">{tenant.owner_name}</strong> | City: <strong className="text-slate-900">{tenant.city}</strong> | Phone: <strong className="text-slate-900">{tenant.phone}</strong>
+              <p className="text-xs text-slate-600 font-normal mt-1">
+                Owner: <strong className="text-slate-900 font-semibold">{tenant.owner_name}</strong> | City: <strong className="text-slate-900 font-semibold">{tenant.city}</strong> | Phone: <strong className="text-slate-900 font-semibold">{tenant.phone}</strong>
               </p>
             </div>
 
             {/* Status Switcher */}
             <div className="flex items-center space-x-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-2xs font-extrabold uppercase text-slate-500 px-2">Subscription:</span>
+              <span className="text-2xs font-medium uppercase text-slate-500 px-2">Subscription:</span>
               <button
                 onClick={() => handleStatusChange('active')}
                 className={`px-3 py-1.5 rounded-lg text-2xs font-semibold transition-all cursor-pointer ${
@@ -365,7 +365,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
             <button
               onClick={() => setActiveTab('features')}
               className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'features' ? 'bg-sidebar-900 text-white shadow-sm font-extrabold' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'features' ? 'bg-sidebar-900 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <SlidersHorizontal className="w-4 h-4 text-sarson-400" />
@@ -375,7 +375,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
             <button
               onClick={() => setActiveTab('details')}
               className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'details' ? 'bg-sidebar-900 text-white shadow-sm font-extrabold' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'details' ? 'bg-sidebar-900 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Store className="w-4 h-4 text-sarson-400" />
@@ -388,27 +388,27 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               {/* License & Verification Panel */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-2xs font-extrabold uppercase text-slate-500">Agri-Input Dealer License</span>
+                  <span className="text-2xs font-medium uppercase text-slate-500">Agri-Input Dealer License</span>
                   <div className="text-sm font-semibold text-amber-700 font-mono">{tenant.dealer_license_number}</div>
-                  <span className="text-[11px] text-slate-500 block">Punjab Agriculture Dept Verified</span>
+                  <span className="text-[11px] text-slate-500 font-normal block">Punjab Agriculture Dept Verified</span>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-2xs font-extrabold uppercase text-slate-500">License Expiry Date</span>
+                  <span className="text-2xs font-medium uppercase text-slate-500">License Expiry Date</span>
                   <div className="text-sm font-semibold text-slate-900 font-mono">{tenant.license_expiry_date}</div>
-                  <span className="text-[11px] text-emerald-800 font-bold block">Valid License Registered</span>
+                  <span className="text-[11px] text-emerald-800 font-semibold block">Valid License Registered</span>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-2xs font-extrabold uppercase text-slate-500">Branch Mode</span>
+                  <span className="text-2xs font-medium uppercase text-slate-500">Branch Mode</span>
                   <div className="text-sm font-semibold text-slate-900 uppercase">{tenant.settings.branch_mode}</div>
-                  <span className="text-[11px] text-slate-500 block">Multi-Outlet Inventory Sync</span>
+                  <span className="text-[11px] text-slate-500 font-normal block">Multi-Outlet Inventory Sync</span>
                 </div>
               </div>
 
               {/* Registered Branch Outlets */}
               <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                   <Store className="w-4 h-4 text-emerald-700" />
                   <span>Registered Branch Outlets ({branches.length})</span>
                 </h3>
@@ -418,10 +418,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     <div key={b.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="font-extrabold text-slate-900 text-sm">{b.name}</div>
-                          <div className="text-xs text-slate-500">{b.address}</div>
+                          <div className="font-semibold text-slate-900 text-sm">{b.name}</div>
+                          <div className="text-xs text-slate-500 font-normal">{b.address}</div>
                         </div>
-                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                           ACTIVE OUTLET
                         </span>
                       </div>
@@ -445,14 +445,14 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     <SlidersHorizontal className="w-5 h-5 text-emerald-700" />
                     <span>Granular Server-Enforced Feature Controls for {tenant.business_name}</span>
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 font-normal mt-0.5">
                     Super Admin controls sidebar item visibility and route access specifically for this tenant.
                   </p>
                 </div>
 
                 <button
                   onClick={() => setIsPreviewOpen(true)}
-                  className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+                  className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
                 >
                   <Eye className="w-4 h-4 text-sarson-300" />
                   <span>PREVIEW AS THIS TENANT</span>
@@ -473,7 +473,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         </div>
                         <div>
                           <h4 className="text-sm font-semibold text-slate-900">{category.title}</h4>
-                          <p className="text-2xs text-slate-500">{category.description}</p>
+                          <p className="text-2xs text-slate-500 font-normal">{category.description}</p>
                         </div>
                       </div>
 
@@ -498,7 +498,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                                 >
                                   <div>
                                     <span className="text-xs font-semibold text-slate-900 block">{t.label}</span>
-                                    <span className="text-[10px] font-mono text-emerald-800 font-bold">
+                                    <span className="text-[10px] font-mono text-emerald-800 font-medium">
                                       Sidebar: &quot;{t.sidebarItem}&quot;
                                     </span>
                                   </div>
@@ -520,18 +520,18 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                                 </div>
 
                                 {/* Explicit Description */}
-                                <p className="text-2xs text-slate-600 leading-relaxed font-medium">
+                                <p className="text-2xs text-slate-600 leading-relaxed font-normal">
                                   {t.desc}
                                 </p>
 
                                 {/* Inline Consequence Note when OFF */}
                                 {!enabled && (
                                   <div className="bg-amber-50 border border-amber-200/90 rounded-lg p-2 text-[10px] text-amber-900 space-y-0.5 animate-fade-in-up">
-                                    <div className="font-extrabold flex items-center gap-1">
+                                    <div className="font-semibold flex items-center gap-1">
                                       <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
                                       <span>Effect when OFF:</span>
                                     </div>
-                                    <p className="text-[10px] leading-tight font-medium text-amber-800">
+                                    <p className="text-[10px] leading-tight font-normal text-amber-800">
                                       {t.offNote}
                                     </p>
                                   </div>
@@ -539,8 +539,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                               </div>
 
                               {/* Footer Status Badge & Route Tag */}
-                              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] font-bold">
-                                <span className="text-2xs text-slate-500 font-mono">
+                              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] font-semibold">
+                                <span className="text-2xs text-slate-500 font-mono font-medium">
                                   {t.routes.join(', ')}
                                 </span>
                                 <span
@@ -577,8 +577,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   <Eye className="w-5 h-5 text-sarson-400" />
                   <div>
                     <h3 className="text-sm font-semibold uppercase tracking-wider">Live Sidebar &amp; Route Access Preview</h3>
-                    <p className="text-2xs text-slate-400 font-medium">
-                      Simulated tenant layout for <strong>{tenant.business_name}</strong> ({tenant.city})
+                    <p className="text-2xs text-slate-400 font-normal">
+                      Simulated tenant layout for <strong className="font-semibold">{tenant.business_name}</strong> ({tenant.city})
                     </p>
                   </div>
                 </div>
@@ -595,8 +595,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               <div className="p-6 overflow-y-auto space-y-5 bg-slate-50/60 text-xs">
                 
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-900 flex items-center justify-between text-2xs">
-                  <div className="font-bold">
-                    💡 This preview reflects real-time feature flags specifically configured for <strong>{tenant.business_name}</strong>. Green items are visible to shop staff; greyed out items with lock icons are hidden/blocked.
+                  <div className="font-normal">
+                    💡 This preview reflects real-time feature flags specifically configured for <strong className="font-semibold">{tenant.business_name}</strong>. Green items are visible to shop staff; greyed out items with lock icons are hidden/blocked.
                   </div>
                 </div>
 
@@ -604,11 +604,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   
                   {/* Overview Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <LayoutDashboard className="w-3.5 h-3.5" />
                       <span>Overview</span>
                     </div>
-                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded-lg font-extrabold flex items-center justify-between">
+                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded-lg font-semibold flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <LayoutDashboard className="w-4 h-4 text-emerald-700" />
                         Dashboard (/dashboard)
@@ -621,7 +621,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Sales & Udhaar Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <ShoppingCart className="w-3.5 h-3.5" />
                       <span>Sales &amp; Udhaar</span>
                     </div>
@@ -634,7 +634,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className={`p-2 rounded-lg font-bold flex items-center justify-between border ${
+                          className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
                               ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
                               : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
@@ -654,7 +654,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Inventory & Stock Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <Package className="w-3.5 h-3.5" />
                       <span>Inventory &amp; Stock</span>
                     </div>
@@ -666,7 +666,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className={`p-2 rounded-lg font-bold flex items-center justify-between border ${
+                          className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
                               ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
                               : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
@@ -686,7 +686,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Operations Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <ArrowLeftRight className="w-3.5 h-3.5" />
                       <span>Operations</span>
                     </div>
@@ -697,7 +697,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className={`p-2 rounded-lg font-bold flex items-center justify-between border ${
+                          className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
                               ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
                               : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
@@ -717,7 +717,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Reports & Audit Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <FileBarChart2 className="w-3.5 h-3.5" />
                       <span>Reports &amp; Audit</span>
                     </div>
@@ -730,7 +730,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className={`p-2 rounded-lg font-bold flex items-center justify-between border ${
+                          className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
                               ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
                               : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
@@ -750,7 +750,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* System Settings Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <Settings2 className="w-3.5 h-3.5" />
                       <span>System Settings</span>
                     </div>
@@ -763,7 +763,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className={`p-2 rounded-lg font-bold flex items-center justify-between border ${
+                          className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
                               ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
                               : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
@@ -789,7 +789,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               <div className="p-4 bg-slate-100 border-t border-slate-200 text-right shrink-0">
                 <button
                   onClick={() => setIsPreviewOpen(false)}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold px-5 py-2 rounded-xl text-xs cursor-pointer transition-colors"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2 rounded-xl text-xs cursor-pointer transition-colors"
                 >
                   Close Preview
                 </button>

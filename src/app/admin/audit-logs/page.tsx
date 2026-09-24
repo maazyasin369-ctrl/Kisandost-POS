@@ -51,10 +51,10 @@ export default function SuperAdminAuditLogsPage() {
         {/* Page Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <nav className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 mb-1">
+            <nav className="flex items-center gap-1.5 text-2xs font-medium text-slate-400 mb-1">
               <span>Super Admin</span>
               <ChevronRight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-extrabold">Audit & Security</span>
+              <span className="text-slate-900 font-semibold">Audit & Security</span>
             </nav>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
               Platform Security & System Audit Logs
@@ -68,7 +68,7 @@ export default function SuperAdminAuditLogsPage() {
             <div className="p-2 bg-emerald-700 text-white rounded-lg">
               <FileText className="w-4 h-4" strokeWidth={2} />
             </div>
-            <h2 className="font-extrabold text-base text-slate-900">System Security Activity Trail</h2>
+            <h2 className="font-semibold text-base text-slate-900">System Security Activity Trail</h2>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
@@ -79,13 +79,13 @@ export default function SuperAdminAuditLogsPage() {
                     <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-slate-900 text-amber-400 font-mono">
                       {log.type}
                     </span>
-                    <span className="font-extrabold text-slate-900 text-xs">{log.action}</span>
+                    <span className="font-semibold text-slate-900 text-xs">{log.action}</span>
                   </div>
-                  <p className="text-xs text-slate-600">{log.detail}</p>
+                  <p className="text-xs text-slate-600 font-normal">{log.detail}</p>
                 </div>
 
                 <div className="flex items-center space-x-4 text-2xs">
-                  <span className="text-slate-500 font-mono flex items-center gap-1">
+                  <span className="text-slate-500 font-mono font-medium flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
                     {log.time}
                   </span>

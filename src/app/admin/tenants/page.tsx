@@ -242,10 +242,10 @@ export default function SuperAdminTenantsPage() {
           
           {/* Top Row inside Hero Banner: Navigation & Action Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <nav className="flex items-center gap-1.5 text-2xs font-extrabold text-blue-600">
+            <nav className="flex items-center gap-1.5 text-2xs font-medium text-blue-600">
               <span>Super Admin</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" strokeWidth={2.5} />
-              <span className="text-slate-900 font-semibold">Dashboard</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" strokeWidth={2} />
+              <span className="text-slate-900 font-medium">Dashboard</span>
             </nav>
 
             {/* Quick Actions & Primary "+ Create New Tenant" Button */}
@@ -255,15 +255,15 @@ export default function SuperAdminTenantsPage() {
                   setFormError(null);
                   setIsCreateModalOpen(true);
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-2xs font-extrabold px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-2xs font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer"
               >
-                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                <Plus className="w-4 h-4" strokeWidth={2} />
                 <span>+ Create New Tenant</span>
               </button>
 
               <Link
                 href="/dashboard"
-                className="bg-white hover:bg-slate-50 text-slate-800 text-2xs font-extrabold px-4 py-2 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 transition-all"
+                className="bg-white hover:bg-slate-50 text-slate-800 text-2xs font-semibold px-4 py-2 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 transition-all"
               >
                 <Store className="w-3.5 h-3.5 text-blue-600" />
                 <span>Switch to Shop Counter</span>
@@ -285,7 +285,7 @@ export default function SuperAdminTenantsPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
                 Registered Tenant Shops Catalog
               </h1>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              <p className="text-xs text-slate-600 font-normal leading-relaxed">
                 Multi-tenant management portal: Create new shop tenants, view registered pesticide shops, subscription status, and per-tenant server-enforced feature flags.
               </p>
             </div>
@@ -299,7 +299,7 @@ export default function SuperAdminTenantsPage() {
                 <div className="text-xs font-semibold text-white flex items-center gap-1">
                   <span>Multi-Tenant Isolation Active</span>
                 </div>
-                <div className="text-[11px] font-bold text-emerald-100 flex items-center gap-1 mt-0.5">
+                <div className="text-[11px] font-medium text-emerald-100 flex items-center gap-1 mt-0.5">
                   <span>{totalTenants} Shop Accounts Registered</span>
                   <Check className="w-3.5 h-3.5 text-white" />
                 </div>
@@ -319,7 +319,7 @@ export default function SuperAdminTenantsPage() {
                 <Store className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-2xs font-extrabold text-blue-900/80 uppercase tracking-wider block">Total Registered Shops</span>
+                <span className="text-2xs font-medium text-blue-900/80 uppercase tracking-wider block">Total Registered Shops</span>
                 <div className="text-xl font-semibold text-blue-950 mt-0.5">{totalTenants} Tenants</div>
               </div>
             </div>
@@ -339,7 +339,7 @@ export default function SuperAdminTenantsPage() {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-2xs font-extrabold text-emerald-900/80 uppercase tracking-wider block">Active Paid Subscriptions</span>
+                <span className="text-2xs font-medium text-emerald-900/80 uppercase tracking-wider block">Active Paid Subscriptions</span>
                 <div className="text-xl font-semibold text-emerald-950 mt-0.5">{activeCount} Shops</div>
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function SuperAdminTenantsPage() {
                 <Clock className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-2xs font-extrabold text-purple-900/80 uppercase tracking-wider block">Trial Accounts</span>
+                <span className="text-2xs font-medium text-purple-900/80 uppercase tracking-wider block">Trial Accounts</span>
                 <div className="text-xl font-semibold text-purple-950 mt-0.5">{trialCount} Shops</div>
               </div>
             </div>
@@ -385,13 +385,13 @@ export default function SuperAdminTenantsPage() {
               placeholder="Search shop name, owner, city, or license #..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              className="w-full bg-transparent text-xs font-normal text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
           </div>
 
           {/* Status Filter Pills + Create Button */}
           <div className="flex flex-wrap items-center space-x-2 gap-y-2">
-            <span className="font-semibold text-slate-500 uppercase text-2xs mr-1">Status:</span>
+            <span className="font-medium text-slate-500 uppercase text-2xs mr-1">Status:</span>
             {(['all', 'active', 'trial', 'suspended'] as const).map((st) => (
               <button
                 key={st}
@@ -411,7 +411,7 @@ export default function SuperAdminTenantsPage() {
                 setFormError(null);
                 setIsCreateModalOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-extrabold px-3.5 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer ml-2"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-semibold px-3.5 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer ml-2"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Add Shop</span>
@@ -446,8 +446,8 @@ export default function SuperAdminTenantsPage() {
                       </div>
                       <div>
                         <h2 className="text-base font-semibold text-slate-900 tracking-tight">{t.business_name}</h2>
-                        <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                          Owner: <strong className="text-slate-900 font-bold">{t.owner_name}</strong> &nbsp;|&nbsp; City: <strong className="text-slate-900 font-bold">{t.city}</strong>
+                        <p className="text-xs text-slate-600 font-normal mt-0.5">
+                          Owner: <strong className="text-slate-900 font-semibold">{t.owner_name}</strong> &nbsp;|&nbsp; City: <strong className="text-slate-900 font-semibold">{t.city}</strong>
                         </p>
                       </div>
                     </div>
@@ -473,7 +473,7 @@ export default function SuperAdminTenantsPage() {
                     <div className="bg-[#EFF6FF] p-3 rounded-2xl border border-blue-100 space-y-1">
                       <div className="flex items-center space-x-1.5 text-blue-600">
                         <CreditCard className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-extrabold uppercase text-slate-500">Dealer License</span>
+                        <span className="text-[10px] font-medium uppercase text-slate-500">Dealer License</span>
                       </div>
                       <div className="font-semibold text-slate-900 font-mono text-xs">{t.dealer_license_number}</div>
                     </div>
@@ -482,7 +482,7 @@ export default function SuperAdminTenantsPage() {
                     <div className="bg-[#F5F3FF] p-3 rounded-2xl border border-purple-100 space-y-1">
                       <div className="flex items-center space-x-1.5 text-purple-600">
                         <Calendar className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-extrabold uppercase text-slate-500">License Expiry</span>
+                        <span className="text-[10px] font-medium uppercase text-slate-500">License Expiry</span>
                       </div>
                       <div className="font-semibold text-slate-900 font-mono text-xs">{t.license_expiry_date}</div>
                     </div>
@@ -491,7 +491,7 @@ export default function SuperAdminTenantsPage() {
                     <div className="bg-[#ECFDF5] p-3 rounded-2xl border border-emerald-100 space-y-1">
                       <div className="flex items-center space-x-1.5 text-emerald-600">
                         <Store className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-extrabold uppercase text-slate-500">Outlets / Branches</span>
+                        <span className="text-[10px] font-medium uppercase text-slate-500">Outlets / Branches</span>
                       </div>
                       <div className="font-semibold text-emerald-950 text-xs">{branches.length} Registered Outlets</div>
                     </div>
@@ -500,7 +500,7 @@ export default function SuperAdminTenantsPage() {
                     <div className="bg-[#ECFEFF] p-3 rounded-2xl border border-cyan-100 space-y-1">
                       <div className="flex items-center space-x-1.5 text-cyan-700">
                         <Settings className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-extrabold uppercase text-slate-500">Feature Toggles</span>
+                        <span className="text-[10px] font-medium uppercase text-slate-500">Feature Toggles</span>
                       </div>
                       <div className="font-semibold text-cyan-950 text-xs">{enabledCount} of {totalCount} Enabled</div>
                     </div>
@@ -509,10 +509,10 @@ export default function SuperAdminTenantsPage() {
 
                   {/* Registered Outlets list */}
                   <div className="space-y-1.5 pt-1">
-                    <span className="text-2xs font-extrabold uppercase text-slate-500 tracking-wider">Outlets:</span>
+                    <span className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Outlets:</span>
                     <div className="flex flex-wrap gap-2">
                       {branches.map((b) => (
-                        <span key={b.id} className="bg-[#EFF6FF] text-blue-950 border border-blue-200 text-2xs font-bold px-3 py-1 rounded-xl flex items-center gap-1.5">
+                        <span key={b.id} className="bg-[#EFF6FF] text-blue-950 border border-blue-200 text-2xs font-medium px-3 py-1 rounded-xl flex items-center gap-1.5">
                           <MapPin className="w-3 h-3 text-red-500" />
                           <span>{b.name}</span>
                         </span>
@@ -573,12 +573,12 @@ export default function SuperAdminTenantsPage() {
             {/* Modal Header */}
             <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900 shrink-0">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-extrabold shadow-md shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
                   <Plus className="w-6 h-6 stroke-[3]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-white tracking-tight">Create New Tenant Shop</h3>
-                  <p className="text-2xs text-slate-400 font-medium">
+                  <h3 className="text-base font-bold text-white tracking-tight">Create New Tenant Shop</h3>
+                  <p className="text-2xs text-slate-400 font-normal">
                     Register a new shop, owner profile account, dealer license, and outlet configuration
                   </p>
                 </div>
@@ -607,14 +607,14 @@ export default function SuperAdminTenantsPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                   <Building2 className="w-4 h-4 text-emerald-600" />
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">1. Shop &amp; Owner Profile</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">1. Shop &amp; Owner Profile</h4>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   
                   {/* Shop Business Name */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">Shop / Business Name *</label>
+                    <label className="block font-medium text-slate-800">Shop / Business Name *</label>
                     <div className="relative">
                       <Store className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -623,14 +623,14 @@ export default function SuperAdminTenantsPage() {
                         placeholder="e.g. Al-Madina Agri Services"
                         value={formData.business_name}
                         onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                       />
                     </div>
                   </div>
 
                   {/* Owner Full Name */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">Owner Full Name *</label>
+                    <label className="block font-medium text-slate-800">Owner Full Name *</label>
                     <div className="relative">
                       <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -639,14 +639,14 @@ export default function SuperAdminTenantsPage() {
                         placeholder="e.g. Chaudhry Tariq Mehmood"
                         value={formData.owner_name}
                         onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                       />
                     </div>
                   </div>
 
                   {/* Owner Phone */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">Owner Phone Number *</label>
+                    <label className="block font-medium text-slate-800">Owner Phone Number *</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -655,14 +655,14 @@ export default function SuperAdminTenantsPage() {
                         placeholder="+92 300 1234567"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                       />
                     </div>
                   </div>
 
                   {/* Owner Email */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">Owner Email Address * (For Auth Account)</label>
+                    <label className="block font-medium text-slate-800">Owner Email Address * (For Auth Account)</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -671,14 +671,14 @@ export default function SuperAdminTenantsPage() {
                         placeholder="owner@almadina-agri.pk"
                         value={formData.owner_email}
                         onChange={(e) => setFormData({ ...formData, owner_email: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                       />
                     </div>
                   </div>
 
                   {/* City */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">City *</label>
+                    <label className="block font-medium text-slate-800">City *</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -687,18 +687,18 @@ export default function SuperAdminTenantsPage() {
                         placeholder="Multan, Sahiwal, Faisalabad..."
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                       />
                     </div>
                   </div>
 
                   {/* Subscription Status */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">Initial Subscription Status</label>
+                    <label className="block font-medium text-slate-800">Initial Subscription Status</label>
                     <select
                       value={formData.subscription_status}
                       onChange={(e) => setFormData({ ...formData, subscription_status: e.target.value as SubscriptionStatus })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
                     >
                       <option value="trial">🕒 Trial (30 Days Free)</option>
                       <option value="active">🟢 Active (Paid Subscription)</option>
@@ -713,13 +713,13 @@ export default function SuperAdminTenantsPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                   <CreditCard className="w-4 h-4 text-blue-600" />
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">2. Agri Pesticide Dealer License</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">2. Agri Pesticide Dealer License</h4>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Dealer License # */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">Dealer License Number * (Must be Unique)</label>
+                    <label className="block font-medium text-slate-800">Dealer License Number * (Must be Unique)</label>
                     <div className="relative">
                       <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -735,7 +735,7 @@ export default function SuperAdminTenantsPage() {
 
                   {/* License Expiry Date */}
                   <div className="space-y-1">
-                    <label className="block font-bold text-slate-800">License Expiry Date *</label>
+                    <label className="block font-medium text-slate-800">License Expiry Date *</label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
@@ -755,7 +755,7 @@ export default function SuperAdminTenantsPage() {
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <div className="flex items-center gap-2">
                     <Store className="w-4 h-4 text-purple-600" />
-                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">3. Outlets &amp; Branch Setup</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">3. Outlets &amp; Branch Setup</h4>
                   </div>
                 </div>
 
@@ -770,7 +770,7 @@ export default function SuperAdminTenantsPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-slate-900 flex items-center gap-2">
+                      <span className="font-semibold text-slate-900 flex items-center gap-2">
                         <span>Single Branch Outlet</span>
                       </span>
                       <input
@@ -781,7 +781,7 @@ export default function SuperAdminTenantsPage() {
                         className="w-4 h-4 text-blue-600"
                       />
                     </div>
-                    <p className="text-2xs text-slate-500 leading-tight">
+                    <p className="text-2xs text-slate-500 leading-tight font-normal">
                       One main outlet. Multi-branch features disabled by default for this tenant.
                     </p>
                   </div>
@@ -791,11 +791,11 @@ export default function SuperAdminTenantsPage() {
                     className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
                       formData.branch_setup === 'multiple'
                         ? 'bg-purple-50/90 border-purple-400 ring-2 ring-purple-500/30'
-                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        : 'bg-[#F8FAFC] border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-slate-900 flex items-center gap-2">
+                      <span className="font-semibold text-slate-900 flex items-center gap-2">
                         <span>Multiple Outlets / Branches</span>
                       </span>
                       <input
@@ -806,7 +806,7 @@ export default function SuperAdminTenantsPage() {
                         className="w-4 h-4 text-purple-600"
                       />
                     </div>
-                    <p className="text-2xs text-slate-500 leading-tight">
+                    <p className="text-2xs text-slate-500 leading-tight font-normal">
                       2 or more outlets. Multi-branch feature toggle ON by default.
                     </p>
                   </div>
@@ -817,7 +817,7 @@ export default function SuperAdminTenantsPage() {
                   {formData.branches.map((b, idx) => (
                     <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 relative">
                       <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-slate-800 text-2xs uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="font-semibold text-slate-800 text-2xs uppercase tracking-wider flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-red-500" />
                           <span>Outlet #{idx + 1} Configuration</span>
                         </span>
@@ -826,7 +826,7 @@ export default function SuperAdminTenantsPage() {
                           <button
                             type="button"
                             onClick={() => handleRemoveBranchField(idx)}
-                            className="text-red-500 hover:text-red-700 text-2xs font-bold flex items-center gap-1 p-1 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                            className="text-red-500 hover:text-red-700 text-2xs font-semibold flex items-center gap-1 p-1 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>Remove</span>
@@ -836,7 +836,7 @@ export default function SuperAdminTenantsPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="block text-2xs font-bold text-slate-700">Branch Name *</label>
+                          <label className="block text-2xs font-medium text-slate-700">Branch Name *</label>
                           <input
                             type="text"
                             required
@@ -848,7 +848,7 @@ export default function SuperAdminTenantsPage() {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="block text-2xs font-bold text-slate-700">Branch Address *</label>
+                          <label className="block text-2xs font-medium text-slate-700">Branch Address *</label>
                           <input
                             type="text"
                             required
@@ -866,7 +866,7 @@ export default function SuperAdminTenantsPage() {
                     <button
                       type="button"
                       onClick={handleAddBranchField}
-                      className="w-full py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 font-extrabold border border-dashed border-purple-300 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                      className="w-full py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold border border-dashed border-purple-300 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
                     >
                       <Plus className="w-4 h-4 text-purple-700" />
                       <span>+ Add Another Branch Outlet</span>
@@ -881,14 +881,14 @@ export default function SuperAdminTenantsPage() {
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold rounded-xl text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
                 >
                   <Plus className="w-4 h-4" />
                   <span>CREATE TENANT SHOP</span>

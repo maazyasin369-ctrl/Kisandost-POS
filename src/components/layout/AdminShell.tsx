@@ -95,7 +95,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     SUPER ADMIN
                   </span>
                 </div>
-                <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase">
+                <div className="text-[9px] font-medium text-slate-400 tracking-wider uppercase">
                   MULTI-TENANT SAAS OPERATIONS CENTER
                 </div>
               </div>
@@ -116,8 +116,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 M
               </div>
               <div className="text-left text-2xs leading-tight">
-                <div className="font-extrabold text-slate-900">Super Admin</div>
-                <div className="text-slate-500 font-semibold">Administrator</div>
+                <div className="font-semibold text-slate-900">Super Admin</div>
+                <div className="text-slate-500 font-medium">Administrator</div>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </div>
@@ -157,7 +157,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               {!isCollapsed && (
                 <div className="flex items-center space-x-1.5">
                   <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span className="text-2xs font-bold uppercase tracking-widest text-slate-700">
+                  <span className="text-2xs font-medium uppercase tracking-widest text-slate-600">
                     SUPER ADMIN CONTROLS
                   </span>
                 </div>
@@ -186,13 +186,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                       ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-3'}
                       ${active
                         ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                        : 'text-slate-600 font-bold hover:bg-slate-100 hover:text-slate-900'
+                        : 'text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900'
                       }
                     `}
                   >
                     <Icon
                       className={`shrink-0 w-4 h-4 ${active ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'}`}
-                      strokeWidth={2.2}
+                      strokeWidth={2}
                     />
                     {!isCollapsed && <span className="truncate">{item.label}</span>}
                     {!isCollapsed && item.badge && (
@@ -209,11 +209,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <div className="shrink-0 border-t border-slate-200 p-3 bg-slate-50/80">
               {!isCollapsed ? (
                 <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1 text-2xs shadow-2xs">
-                  <div className="flex items-center space-x-2 font-bold text-emerald-600">
+                  <div className="flex items-center space-x-2 text-emerald-600">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-extrabold text-xs text-slate-900">System Operator Active</span>
+                    <span className="font-semibold text-xs text-slate-900">System Operator Active</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
+                  <p className="text-[11px] text-slate-500 font-normal leading-tight">
                     All systems are running smoothly. Platform is active and secure.
                   </p>
                 </div>
