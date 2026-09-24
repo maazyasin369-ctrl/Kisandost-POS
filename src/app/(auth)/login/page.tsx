@@ -30,19 +30,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/80 via-slate-100 to-amber-50/70 relative flex items-center justify-center p-4 text-slate-900 font-jakarta overflow-hidden">
+      {/* Soft ambient background glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-amber-200/40 blur-3xl pointer-events-none rounded-full" />
+      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[300px] bg-emerald-200/30 blur-3xl pointer-events-none rounded-full" />
 
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-md z-10">
         {/* Logo & Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-400 text-slate-950 rounded-2xl shadow-xl shadow-amber-400/10 mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-400 text-slate-950 rounded-2xl shadow-xl shadow-amber-500/20 mb-4">
             <Store className="w-8 h-8 text-slate-950" strokeWidth={2.2} />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">KisanDost POS</h1>
-          <p className="text-slate-400 text-sm mt-1">Pesticide &amp; Agri Shop Management</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">KisanDost POS</h1>
+          <p className="text-slate-600 text-sm mt-1 font-medium">Pesticide &amp; Agri Shop Management</p>
         </div>
 
-        {/* Login Card */}
+        {/* Login Card (Kept Black & Yellow) */}
         <div className="bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
           {/* Card Header */}
           <div className="bg-slate-950 px-6 py-4 border-b border-slate-800">
@@ -163,8 +166,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-slate-400 text-xs mt-6">
-          Super Admin operator? <Link href="/admin/login" className="text-amber-400 underline font-bold hover:text-amber-300">Sign in here</Link>
+        <p className="text-center text-slate-600 text-xs mt-6 font-medium">
+          Super Admin operator? <Link href="/admin/login" className="text-amber-600 underline font-bold hover:text-amber-700">Sign in here</Link>
         </p>
       </div>
     </div>
