@@ -19,9 +19,25 @@ import {
   Settings,
   Leaf,
   LogOut,
+  Plus,
+  X,
+  Trash2,
+  User,
+  Mail,
+  Phone,
+  Building2,
+  AlertCircle,
+  Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import { SubscriptionStatus } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
+
+interface BranchInput {
+  name: string;
+  address: string;
+  phone?: string;
+}
 
 export default function SuperAdminTenantsPage() {
   const router = useRouter();
@@ -29,6 +45,27 @@ export default function SuperAdminTenantsPage() {
   const [tenants, setTenants] = useState(() => dataStore.getTenants());
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | SubscriptionStatus>('all');
+
+  // Modal State for "+ Create New Tenant"
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const initialFormState = {
+    business_name: '',
+    owner_name: '',
+    phone: '',
+    owner_email: '',
+    city: '',
+    dealer_license_number: '',
+    license_expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    subscription_status: 'trial' as SubscriptionStatus,
+    branch_setup: 'single' as 'single' | 'multiple',
+    branches: [
+      { name: 'Main Outlet', address: '', phone: '' }
+    ] as BranchInput[]
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   const reloadTenants = () => {
     setTenants([...dataStore.getTenants()]);
@@ -43,6 +80,140 @@ export default function SuperAdminTenantsPage() {
   const handleLogout = () => {
     localStorage.removeItem('super_admin_authenticated');
     router.push('/admin/login');
+  };
+
+  const handleBranchSetupChange = (setup: 'single' | 'multiple') => {
+    if (setup === 'single') {
+      setFormData(prev => ({
+        ...prev,
+        branch_setup: 'single',
+        branches: [
+          prev.branches[0] || {
+            name: prev.business_name ? `${prev.business_name} - Main Outlet` : 'Main Outlet',
+            address: prev.city || '',
+            phone: prev.phone || ''
+          }
+        ]
+      }));
+    } else {
+      setFormData(prev => {
+        const current = [...prev.branches];
+        if (current.length < 2) {
+          current.push({
+            name: prev.business_name ? `${prev.business_name} - Branch 2` : 'Branch 2 Outlet',
+            address: prev.city || '',
+            phone: prev.phone || ''
+          });
+        }
+        return {
+          ...prev,
+          branch_setup: 'multiple',
+          branches: current
+        };
+      });
+    }
+  };
+
+  const handleAddBranchField = () => {
+    setFormData(prev => ({
+      ...prev,
+      branches: [
+        ...prev.branches,
+        {
+          name: `Branch ${prev.branches.length + 1} Outlet`,
+          address: prev.city || '',
+          phone: prev.phone || ''
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveBranchField = (index: number) => {
+    setFormData(prev => {
+      const updated = prev.branches.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        branches: updated
+      };
+    });
+  };
+
+  const handleBranchInputChange = (index: number, field: keyof BranchInput, value: string) => {
+    setFormData(prev => {
+      const updated = [...prev.branches];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, branches: updated };
+    });
+  };
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    // Form Field Validations
+    if (!formData.business_name.trim()) {
+      setFormError('Shop / Business Name is required.');
+      return;
+    }
+    if (!formData.owner_name.trim()) {
+      setFormError('Owner Full Name is required.');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setFormError('Owner Phone Number is required.');
+      return;
+    }
+    if (!formData.owner_email.trim()) {
+      setFormError('Owner Email Address is required for account creation.');
+      return;
+    }
+    if (!formData.city.trim()) {
+      setFormError('City is required.');
+      return;
+    }
+    if (!formData.dealer_license_number.trim()) {
+      setFormError('Dealer License Number is required.');
+      return;
+    }
+    if (!formData.license_expiry_date) {
+      setFormError('License Expiry Date is required.');
+      return;
+    }
+
+    // Branch validation
+    if (formData.branch_setup === 'multiple' && formData.branches.length < 2) {
+      setFormError('Multiple Branch mode requires at least 2 branch outlets.');
+      return;
+    }
+
+    for (let i = 0; i < formData.branches.length; i++) {
+      const b = formData.branches[i];
+      if (!b.name.trim()) {
+        setFormError(`Branch #${i + 1} Name is required.`);
+        return;
+      }
+      if (!b.address.trim()) {
+        setFormError(`Branch #${i + 1} Address is required.`);
+        return;
+      }
+    }
+
+    // Attempt Creation via DataStore
+    const result = dataStore.createTenant(formData);
+
+    if (!result.success || !result.tenant) {
+      setFormError(result.error || 'Failed to create tenant.');
+      return;
+    }
+
+    // Success!
+    reloadTenants();
+    showToast(`Tenant shop '${result.tenant.business_name}' created successfully!`, 'success');
+    setIsCreateModalOpen(false);
+    setFormData(initialFormState);
+
+    // Redirect to the newly created tenant's detail page (Feature Access screen)
+    router.push(`/admin/tenants/${result.tenant.id}`);
   };
 
   const filteredTenants = tenants.filter((t) => {
@@ -77,8 +248,19 @@ export default function SuperAdminTenantsPage() {
               <span className="text-slate-900 font-semibold">Dashboard</span>
             </nav>
 
-            {/* Quick Actions matching top right of image */}
-            <div className="flex items-center space-x-3">
+            {/* Quick Actions & Primary "+ Create New Tenant" Button */}
+            <div className="flex flex-wrap items-center space-x-3 gap-y-2">
+              <button
+                onClick={() => {
+                  setFormError(null);
+                  setIsCreateModalOpen(true);
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-2xs font-extrabold px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                <span>+ Create New Tenant</span>
+              </button>
+
               <Link
                 href="/dashboard"
                 className="bg-white hover:bg-slate-50 text-slate-800 text-2xs font-extrabold px-4 py-2 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 transition-all"
@@ -104,7 +286,7 @@ export default function SuperAdminTenantsPage() {
                 Registered Tenant Shops Catalog
               </h1>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                Multi-tenant management portal: View registered pesticide shops, subscription status, and per-tenant server-enforced feature flags.
+                Multi-tenant management portal: Create new shop tenants, view registered pesticide shops, subscription status, and per-tenant server-enforced feature flags.
               </p>
             </div>
 
@@ -207,8 +389,8 @@ export default function SuperAdminTenantsPage() {
             />
           </div>
 
-          {/* Status Filter Pills */}
-          <div className="flex items-center space-x-2">
+          {/* Status Filter Pills + Create Button */}
+          <div className="flex flex-wrap items-center space-x-2 gap-y-2">
             <span className="font-semibold text-slate-500 uppercase text-2xs mr-1">Status:</span>
             {(['all', 'active', 'trial', 'suspended'] as const).map((st) => (
               <button
@@ -223,6 +405,17 @@ export default function SuperAdminTenantsPage() {
                 {st === 'all' ? 'All' : st === 'active' ? 'Active' : st === 'trial' ? 'Trial' : 'Suspended'}
               </button>
             ))}
+
+            <button
+              onClick={() => {
+                setFormError(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-extrabold px-3.5 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer ml-2"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Add Shop</span>
+            </button>
           </div>
         </div>
 
@@ -371,6 +564,343 @@ export default function SuperAdminTenantsPage() {
         </div>
 
       </div>
+
+      {/* Modal: "+ Create New Tenant" Form */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[92vh]">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-extrabold shadow-md shrink-0">
+                  <Plus className="w-6 h-6 stroke-[3]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white tracking-tight">Create New Tenant Shop</h3>
+                  <p className="text-2xs text-slate-400 font-medium">
+                    Register a new shop, owner profile account, dealer license, and outlet configuration
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body / Form */}
+            <form onSubmit={handleCreateSubmit} className="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+              
+              {/* Inline Error Alert */}
+              {formError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-semibold flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              {/* Section 1: Shop & Owner Basic Details */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <Building2 className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">1. Shop &amp; Owner Profile</h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Shop Business Name */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">Shop / Business Name *</label>
+                    <div className="relative">
+                      <Store className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Al-Madina Agri Services"
+                        value={formData.business_name}
+                        onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Owner Full Name */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">Owner Full Name *</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Chaudhry Tariq Mehmood"
+                        value={formData.owner_name}
+                        onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Owner Phone */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">Owner Phone Number *</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="+92 300 1234567"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Owner Email */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">Owner Email Address * (For Auth Account)</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="owner@almadina-agri.pk"
+                        value={formData.owner_email}
+                        onChange={(e) => setFormData({ ...formData, owner_email: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* City */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">City *</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Multan, Sahiwal, Faisalabad..."
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Subscription Status */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">Initial Subscription Status</label>
+                    <select
+                      value={formData.subscription_status}
+                      onChange={(e) => setFormData({ ...formData, subscription_status: e.target.value as SubscriptionStatus })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                    >
+                      <option value="trial">🕒 Trial (30 Days Free)</option>
+                      <option value="active">🟢 Active (Paid Subscription)</option>
+                      <option value="suspended">🔴 Suspended</option>
+                    </select>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Section 2: Dealer License */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <CreditCard className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">2. Agri Pesticide Dealer License</h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Dealer License # */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">Dealer License Number * (Must be Unique)</label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. PB-MLT-2026-889"
+                        value={formData.dealer_license_number}
+                        onChange={(e) => setFormData({ ...formData, dealer_license_number: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* License Expiry Date */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-800">License Expiry Date *</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="date"
+                        required
+                        value={formData.license_expiry_date}
+                        onChange={(e) => setFormData({ ...formData, license_expiry_date: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Branch Setup & Multi-Branch Toggle */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-4 h-4 text-purple-600" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">3. Outlets &amp; Branch Setup</h4>
+                  </div>
+                </div>
+
+                {/* Branch Choice Pills */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => handleBranchSetupChange('single')}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
+                      formData.branch_setup === 'single'
+                        ? 'bg-blue-50/90 border-blue-400 ring-2 ring-blue-500/30'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-900 flex items-center gap-2">
+                        <span>Single Branch Outlet</span>
+                      </span>
+                      <input
+                        type="radio"
+                        name="branch_setup"
+                        checked={formData.branch_setup === 'single'}
+                        onChange={() => handleBranchSetupChange('single')}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                    </div>
+                    <p className="text-2xs text-slate-500 leading-tight">
+                      One main outlet. Multi-branch features disabled by default for this tenant.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => handleBranchSetupChange('multiple')}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
+                      formData.branch_setup === 'multiple'
+                        ? 'bg-purple-50/90 border-purple-400 ring-2 ring-purple-500/30'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-900 flex items-center gap-2">
+                        <span>Multiple Outlets / Branches</span>
+                      </span>
+                      <input
+                        type="radio"
+                        name="branch_setup"
+                        checked={formData.branch_setup === 'multiple'}
+                        onChange={() => handleBranchSetupChange('multiple')}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                    </div>
+                    <p className="text-2xs text-slate-500 leading-tight">
+                      2 or more outlets. Multi-branch feature toggle ON by default.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Branch Fields List */}
+                <div className="space-y-3 pt-1">
+                  {formData.branches.map((b, idx) => (
+                    <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 relative">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-slate-800 text-2xs uppercase tracking-wider flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-red-500" />
+                          <span>Outlet #{idx + 1} Configuration</span>
+                        </span>
+
+                        {formData.branch_setup === 'multiple' && formData.branches.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveBranchField(idx)}
+                            className="text-red-500 hover:text-red-700 text-2xs font-bold flex items-center gap-1 p-1 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-2xs font-bold text-slate-700">Branch Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Main Outlet / Grain Market Branch"
+                            value={b.name}
+                            onChange={(e) => handleBranchInputChange(idx, 'name', e.target.value)}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-2xs font-bold text-slate-700">Branch Address *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Shop #14, Grain Market, Vehari Road"
+                            value={b.address}
+                            onChange={(e) => handleBranchInputChange(idx, 'address', e.target.value)}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {formData.branch_setup === 'multiple' && (
+                    <button
+                      type="button"
+                      onClick={handleAddBranchField}
+                      className="w-full py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 font-extrabold border border-dashed border-purple-300 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <Plus className="w-4 h-4 text-purple-700" />
+                      <span>+ Add Another Branch Outlet</span>
+                    </button>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Modal Footer / Buttons */}
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold rounded-xl text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>CREATE TENANT SHOP</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
     </AdminShell>
   );
 }
+

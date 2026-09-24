@@ -62,6 +62,12 @@ class DataStore {
     if (!this.isLoaded && typeof window !== 'undefined') {
       this.isLoaded = true;
       try {
+        const storedTenants = localStorage.getItem('pesticide_tenants');
+        if (storedTenants) this.tenants = JSON.parse(storedTenants);
+
+        const storedBranches = localStorage.getItem('pesticide_branches');
+        if (storedBranches) this.branches = JSON.parse(storedBranches);
+
         const storedProducts = localStorage.getItem('pesticide_products');
         if (storedProducts) this.products = JSON.parse(storedProducts);
 
@@ -175,6 +181,107 @@ class DataStore {
     if (!id) return this.tenant;
     return this.tenants.find(t => t.id === id) ?? this.tenant;
   }
+  createTenant(payload: {
+    business_name: string;
+    owner_name: string;
+    phone: string;
+    owner_email: string;
+    city: string;
+    dealer_license_number: string;
+    license_expiry_date: string;
+    subscription_status: SubscriptionStatus;
+    branch_setup: 'single' | 'multiple';
+    branches: { name: string; address: string; phone?: string }[];
+  }): { success: boolean; error?: string; tenant?: Tenant; tempPassword?: string } {
+    this.ensureClientLoaded();
+
+    const licInput = payload.dealer_license_number.trim().toLowerCase();
+    const isDuplicateLic = this.tenants.some(
+      t => t.dealer_license_number.trim().toLowerCase() === licInput
+    );
+    if (isDuplicateLic) {
+      return {
+        success: false,
+        error: `Dealer License Number '${payload.dealer_license_number}' is already registered by another shop tenant.`
+      };
+    }
+
+    if (!payload.branches || payload.branches.length === 0) {
+      return {
+        success: false,
+        error: 'At least one branch outlet must be defined for the tenant.'
+      };
+    }
+
+    const tenantId = `tenant-${Date.now()}`;
+    const isMultiBranch = payload.branch_setup === 'multiple' || payload.branches.length > 1;
+
+    const newTenant: Tenant = {
+      id: tenantId,
+      business_name: payload.business_name.trim(),
+      owner_name: payload.owner_name.trim(),
+      phone: payload.phone.trim(),
+      city: payload.city.trim(),
+      dealer_license_number: payload.dealer_license_number.trim(),
+      license_expiry_date: payload.license_expiry_date,
+      subscription_status: payload.subscription_status || 'trial',
+      settings: {
+        branch_mode: isMultiBranch ? 'consolidated' : 'independent',
+        features: {
+          pos: true,
+          udhaar: true,
+          sales_history: true,
+          inventory: true,
+          purchases: true,
+          suppliers: true,
+          multi_branch: isMultiBranch,
+          schemes: true,
+          reports: true,
+          day_closing: true,
+          staff_accounts: true,
+          branch_management: true,
+          company_catalog: true,
+        }
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    const createdBranches: Branch[] = payload.branches.map((b, idx) => ({
+      id: `branch-${Date.now()}-${idx + 1}`,
+      tenant_id: tenantId,
+      name: b.name.trim() || `${payload.business_name.trim()} - Main Outlet`,
+      address: b.address.trim() || payload.city.trim(),
+      phone: b.phone?.trim() || payload.phone.trim(),
+      is_active: true,
+      created_at: new Date().toISOString(),
+    }));
+
+    const tempPassword = `KisanDost@${Math.floor(1000 + Math.random() * 9000)}`;
+    const newProfile: Profile = {
+      id: `prof-${Date.now()}`,
+      tenant_id: tenantId,
+      full_name: payload.owner_name.trim(),
+      phone: payload.phone.trim(),
+      role: 'owner',
+      branch_id: createdBranches[0]?.id,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+
+    this.tenants.unshift(newTenant);
+    this.branches.push(...createdBranches);
+    this.profiles.push(newProfile);
+
+    this.save('pesticide_tenants', this.tenants);
+    this.save('pesticide_branches', this.branches);
+    this.save('pesticide_profiles', this.profiles);
+
+    return {
+      success: true,
+      tenant: newTenant,
+      tempPassword,
+    };
+  }
   updateTenantStatus(tenantIdOrStatus: string, statusArg?: SubscriptionStatus) {
     let targetTenant: Tenant | undefined;
     let newStatus: SubscriptionStatus;
@@ -189,6 +296,7 @@ class DataStore {
 
     if (targetTenant) {
       targetTenant.subscription_status = newStatus;
+      this.save('pesticide_tenants', this.tenants);
     }
     return targetTenant ?? this.tenant;
   }
@@ -206,6 +314,7 @@ class DataStore {
 
     if (targetTenant) {
       targetTenant.settings = { ...targetTenant.settings, ...newSettings };
+      this.save('pesticide_tenants', this.tenants);
     }
     return targetTenant ?? this.tenant;
   }
