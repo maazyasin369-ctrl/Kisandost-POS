@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@theme {
+  --color-canvas: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-rule: #E2E8F0;
+  --color-lift: #F1F5F9;
+
+  --color-ink: #0F172A;
+  --color-muted: #475569;
+
+  --color-sidebar-950: #F8FAFC;
+  --color-sidebar-900: #FFFFFF;
+  --color-sidebar-800: #F1F5F9;
+  --color-sidebar-700: #E2E8F0;
+  --color-sidebar-text: #0F172A;
+  --color-sidebar-muted: #64748B;
+
+  --color-sarson-700: #1D4ED8;
+  --color-sarson-600: #2563EB;
+  --color-sarson-500: #2563EB;
+  --color-sarson-400: #3B82F6;
+  --color-sarson-100: #DBEAFE;
+  --color-sarson-50:  #EFF6FF;
+
+  --color-status-cash-bg: #DCFCE7;
+  --color-status-cash-text: #15803D;
+  --color-status-cash-border: #86EFAC;
+
+  --color-status-udhaar-bg: #FFEDD5;
+  --color-status-udhaar-text: #C2410C;
+  --color-status-udhaar-border: #FDBA74;
+
+  --color-status-alert-bg: #FEE2E2;
+  --color-status-alert-text: #B91C1C;
+  --color-status-alert-border: #FCA5A5;
+
+  --color-status-info-bg: #EFF6FF;
+  --color-status-info-text: #1D4ED8;
+  --color-status-info-border: #93C5FD;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    border-color: #E2E8F0;
+  }
+
+  html {
+    font-family: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  table, .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid #F59E0B;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: #DCFCE7;
+    color: #064E3B;
+  }
+}
+
+.font-jakarta { font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ---- 80mm Thermal Receipt Printer CSS Formatting ---- */
+@media print {
+  .no-print { display: none !important; }
+
+  body * { visibility: hidden; }
+  #thermal-receipt,
+  #thermal-receipt * { visibility: visible; }
+  #thermal-receipt {
+    position: absolute;
+    left: 0; top: 0;
+    width: 80mm;
+    padding: 4mm;
+    margin: 0;
+    background: #fff;
+    color: #000;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+}
