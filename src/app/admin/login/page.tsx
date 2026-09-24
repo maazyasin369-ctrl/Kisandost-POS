@@ -29,8 +29,8 @@ export default function SuperAdminLoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 bg-[url('/images/real_grass_bg.png')] bg-cover bg-center bg-fixed relative flex flex-col items-center justify-center p-4 text-slate-900 font-jakarta overflow-hidden">
-      {/* Real Grass overlay gradient for legibility */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/75 via-emerald-950/50 to-slate-950/80 backdrop-blur-[1px] pointer-events-none" />
+      {/* Real Grass overlay gradient (lighter for bright grass visibility) */}
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-emerald-950/20 to-slate-950/40 backdrop-blur-[0.5px] pointer-events-none" />
 
       <div className="max-w-md w-full space-y-6 relative z-10">
 
