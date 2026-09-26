@@ -238,11 +238,11 @@ export default function SuperAdminTenantsPage() {
       <div className="space-y-6">
 
         {/* Hero Header Banner matching Screenshot 1:1 */}
-        <div className="bg-gradient-to-r from-[#EFF6FF] via-white to-[#EBFDF5] border border-blue-100 rounded-3xl p-6 sm:p-7 shadow-xs relative overflow-hidden flex flex-col justify-between space-y-6">
+        <div className="bg-gradient-to-r from-amber-50 via-white to-emerald-50 border border-amber-100 rounded-3xl p-6 sm:p-7 shadow-xs relative overflow-hidden flex flex-col justify-between space-y-6">
           
           {/* Top Row inside Hero Banner: Navigation & Action Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <nav className="flex items-center gap-1.5 text-2xs font-medium text-blue-600">
+            <nav className="flex items-center gap-1.5 text-2xs font-medium text-amber-700">
               <span>Super Admin</span>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" strokeWidth={2} />
               <span className="text-slate-900 font-medium">Dashboard</span>
@@ -265,13 +265,13 @@ export default function SuperAdminTenantsPage() {
                 href="/dashboard"
                 className="bg-white hover:bg-slate-50 text-slate-800 text-2xs font-semibold px-4 py-2 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 transition-all"
               >
-                <Store className="w-3.5 h-3.5 text-blue-600" />
+                <Store className="w-3.5 h-3.5 text-amber-600" />
                 <span>Switch to Shop Counter</span>
               </Link>
 
               <button
                 onClick={handleLogout}
-                className="bg-[#2563EB] hover:bg-blue-700 text-white text-2xs font-semibold px-4 py-2 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+                className="bg-slate-950 hover:bg-slate-800 text-white text-2xs font-semibold px-4 py-2 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Sign Out</span>
@@ -313,22 +313,22 @@ export default function SuperAdminTenantsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           
           {/* Card 1: Total Registered Shops */}
-          <div className="bg-[#EFF6FF] border border-blue-100 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
+          <div className="bg-amber-50 border border-amber-100 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
             <div className="flex items-center space-x-4">
-              <div className="w-11 h-11 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs shrink-0">
                 <Store className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-2xs font-medium text-blue-900/80 uppercase tracking-wider block">Total Registered Shops</span>
-                <div className="text-xl font-semibold text-blue-950 mt-0.5">{totalTenants} Tenants</div>
+                <span className="text-2xs font-medium text-amber-900/80 uppercase tracking-wider block">Total Registered Shops</span>
+                <div className="text-xl font-semibold text-amber-950 mt-0.5">{totalTenants} Tenants</div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {/* Upward Blue Trendline Graphic */}
-              <svg className="w-12 h-6 text-blue-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
+              {/* Upward Amber Trendline Graphic */}
+              <svg className="w-12 h-6 text-amber-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M2 20 L 15 15 L 30 18 L 48 4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <ChevronRight className="w-4 h-4 text-blue-500 group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
 
@@ -353,22 +353,22 @@ export default function SuperAdminTenantsPage() {
           </div>
 
           {/* Card 3: Trial Accounts */}
-          <div className="bg-[#F5F3FF] border border-purple-100 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
+          <div className="bg-slate-100 border border-slate-200 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
             <div className="flex items-center space-x-4">
-              <div className="w-11 h-11 rounded-2xl bg-[#8B5CF6] text-white flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-slate-700 text-white flex items-center justify-center shadow-xs shrink-0">
                 <Clock className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-2xs font-medium text-purple-900/80 uppercase tracking-wider block">Trial Accounts</span>
-                <div className="text-xl font-semibold text-purple-950 mt-0.5">{trialCount} Shops</div>
+                <span className="text-2xs font-medium text-slate-700 uppercase tracking-wider block">Trial Accounts</span>
+                <div className="text-xl font-semibold text-slate-950 mt-0.5">{trialCount} Shops</div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {/* Upward Purple Trendline Graphic */}
-              <svg className="w-12 h-6 text-purple-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
+              {/* Upward Slate Trendline Graphic */}
+              <svg className="w-12 h-6 text-slate-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M2 20 L 15 15 L 30 18 L 48 4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <ChevronRight className="w-4 h-4 text-purple-500 group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
 
@@ -378,7 +378,7 @@ export default function SuperAdminTenantsPage() {
         <div className="bg-white p-3.5 px-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4 text-xs">
           
           {/* Search Input */}
-          <div className="flex items-center gap-2 flex-1 max-w-md bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+          <div className="flex items-center gap-2 flex-1 max-w-md bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 focus-within:ring-2 focus-within:ring-amber-400 transition-all">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input
               type="text"
@@ -398,7 +398,7 @@ export default function SuperAdminTenantsPage() {
                 onClick={() => setStatusFilter(st)}
                 className={`px-4 py-1.5 rounded-xl font-semibold text-2xs uppercase transition-all cursor-pointer ${
                   statusFilter === st
-                    ? 'bg-[#2563EB] text-white shadow-xs'
+                    ? 'bg-slate-950 text-amber-400 shadow-xs'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -469,18 +469,18 @@ export default function SuperAdminTenantsPage() {
                   {/* 4 Soft Pastel Metric Boxes matching Screenshot 1:1 */}
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     
-                    {/* Box 1: Dealer License (Soft Blue) */}
-                    <div className="bg-[#EFF6FF] p-3 rounded-2xl border border-blue-100 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-blue-600">
+                    {/* Box 1: Dealer License (Soft Amber) */}
+                    <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 space-y-1">
+                      <div className="flex items-center space-x-1.5 text-amber-700">
                         <CreditCard className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-medium uppercase text-slate-500">Dealer License</span>
                       </div>
                       <div className="font-semibold text-slate-900 font-mono text-xs">{t.dealer_license_number}</div>
                     </div>
 
-                    {/* Box 2: License Expiry (Soft Purple) */}
-                    <div className="bg-[#F5F3FF] p-3 rounded-2xl border border-purple-100 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-purple-600">
+                    {/* Box 2: License Expiry (Soft Slate) */}
+                    <div className="bg-slate-100 p-3 rounded-2xl border border-slate-200 space-y-1">
+                      <div className="flex items-center space-x-1.5 text-slate-600">
                         <Calendar className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-medium uppercase text-slate-500">License Expiry</span>
                       </div>
@@ -496,13 +496,13 @@ export default function SuperAdminTenantsPage() {
                       <div className="font-semibold text-emerald-950 text-xs">{branches.length} Registered Outlets</div>
                     </div>
 
-                    {/* Box 4: Feature Toggles (Soft Cyan) */}
-                    <div className="bg-[#ECFEFF] p-3 rounded-2xl border border-cyan-100 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-cyan-700">
+                    {/* Box 4: Feature Toggles (Soft Amber) */}
+                    <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 space-y-1">
+                      <div className="flex items-center space-x-1.5 text-amber-700">
                         <Settings className="w-3.5 h-3.5" />
                         <span className="text-[10px] font-medium uppercase text-slate-500">Feature Toggles</span>
                       </div>
-                      <div className="font-semibold text-cyan-950 text-xs">{enabledCount} of {totalCount} Enabled</div>
+                      <div className="font-semibold text-amber-950 text-xs">{enabledCount} of {totalCount} Enabled</div>
                     </div>
 
                   </div>
@@ -512,8 +512,8 @@ export default function SuperAdminTenantsPage() {
                     <span className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Outlets:</span>
                     <div className="flex flex-wrap gap-2">
                       {branches.map((b) => (
-                        <span key={b.id} className="bg-[#EFF6FF] text-blue-950 border border-blue-200 text-2xs font-medium px-3 py-1 rounded-xl flex items-center gap-1.5">
-                          <MapPin className="w-3 h-3 text-red-500" />
+                        <span key={b.id} className="bg-amber-50 text-amber-950 border border-amber-200 text-2xs font-medium px-3 py-1 rounded-xl flex items-center gap-1.5">
+                          <MapPin className="w-3 h-3 text-emerald-600" />
                           <span>{b.name}</span>
                         </span>
                       ))}
@@ -712,7 +712,7 @@ export default function SuperAdminTenantsPage() {
               {/* Section 2: Dealer License */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <CreditCard className="w-4 h-4 text-blue-600" />
+                  <CreditCard className="w-4 h-4 text-amber-600" />
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">2. Agri Pesticide Dealer License</h4>
                 </div>
 
@@ -754,7 +754,7 @@ export default function SuperAdminTenantsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-purple-600" />
+                    <Store className="w-4 h-4 text-emerald-600" />
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">3. Outlets &amp; Branch Setup</h4>
                   </div>
                 </div>
@@ -765,7 +765,7 @@ export default function SuperAdminTenantsPage() {
                     onClick={() => handleBranchSetupChange('single')}
                     className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
                       formData.branch_setup === 'single'
-                        ? 'bg-blue-50/90 border-blue-400 ring-2 ring-blue-500/30'
+                        ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-400/30'
                         : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
@@ -778,7 +778,7 @@ export default function SuperAdminTenantsPage() {
                         name="branch_setup"
                         checked={formData.branch_setup === 'single'}
                         onChange={() => handleBranchSetupChange('single')}
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 accent-amber-500"
                       />
                     </div>
                     <p className="text-2xs text-slate-500 leading-tight font-normal">
@@ -790,7 +790,7 @@ export default function SuperAdminTenantsPage() {
                     onClick={() => handleBranchSetupChange('multiple')}
                     className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
                       formData.branch_setup === 'multiple'
-                        ? 'bg-purple-50/90 border-purple-400 ring-2 ring-purple-500/30'
+                        ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/30'
                         : 'bg-[#F8FAFC] border-slate-200 hover:bg-slate-100'
                     }`}
                   >
@@ -803,7 +803,7 @@ export default function SuperAdminTenantsPage() {
                         name="branch_setup"
                         checked={formData.branch_setup === 'multiple'}
                         onChange={() => handleBranchSetupChange('multiple')}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 accent-emerald-600"
                       />
                     </div>
                     <p className="text-2xs text-slate-500 leading-tight font-normal">
@@ -866,9 +866,9 @@ export default function SuperAdminTenantsPage() {
                     <button
                       type="button"
                       onClick={handleAddBranchField}
-                      className="w-full py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold border border-dashed border-purple-300 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                      className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-semibold border border-dashed border-emerald-300 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
                     >
-                      <Plus className="w-4 h-4 text-purple-700" />
+                      <Plus className="w-4 h-4 text-emerald-700" />
                       <span>+ Add Another Branch Outlet</span>
                     </button>
                   )}

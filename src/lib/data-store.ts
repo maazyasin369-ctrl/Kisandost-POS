@@ -14,7 +14,9 @@ import {
   initialTransfers,
   initialPurchases,
   initialSchemes,
-  initialDayClosings
+  initialDayClosings,
+  initialBillingTerms,
+  initialTenantPayments
 } from './mock-data';
 
 import {
@@ -35,7 +37,12 @@ import {
   Scheme,
   DayClosing,
   PaymentType,
-  SubscriptionStatus
+  SubscriptionStatus,
+  TenantBillingTerms,
+  TenantPaymentRecord,
+  AdminNotification,
+  BillingCycle,
+  FeeCycle
 } from './types';
 
 class DataStore {
@@ -55,6 +62,9 @@ class DataStore {
   private purchases: Purchase[] = [...initialPurchases];
   private schemes: Scheme[] = [...initialSchemes];
   private dayClosings: DayClosing[] = [...initialDayClosings];
+  private billingTerms: TenantBillingTerms[] = [...initialBillingTerms];
+  private tenantPayments: TenantPaymentRecord[] = [...initialTenantPayments];
+  private manualDismissedNotifications: string[] = [];
 
   private isLoaded = false;
 
@@ -106,6 +116,15 @@ class DataStore {
 
         const storedDayClosings = localStorage.getItem('pesticide_day_closings');
         if (storedDayClosings) this.dayClosings = JSON.parse(storedDayClosings);
+
+        const storedBillingTerms = localStorage.getItem('pesticide_billing_terms');
+        if (storedBillingTerms) this.billingTerms = JSON.parse(storedBillingTerms);
+
+        const storedTenantPayments = localStorage.getItem('pesticide_tenant_payments');
+        if (storedTenantPayments) this.tenantPayments = JSON.parse(storedTenantPayments);
+
+        const storedDismissed = localStorage.getItem('pesticide_dismissed_notifications');
+        if (storedDismissed) this.manualDismissedNotifications = JSON.parse(storedDismissed);
 
         this.recalculateLedgerBalances();
       } catch (e) {
@@ -1404,6 +1423,242 @@ class DataStore {
 
     return closing;
   }
+
+  // --- TENANT BILLING & COMMERCIAL TERMS METHODS ---
+
+  getBillingTerms(tenantId: string): TenantBillingTerms {
+    this.ensureClientLoaded();
+    let terms = this.billingTerms.find(t => t.tenant_id === tenantId);
+    if (!terms) {
+      const tenantObj = this.tenants.find(t => t.id === tenantId);
+      const bizName = tenantObj ? tenantObj.business_name : 'Shop Tenant';
+      terms = {
+        id: `term-${Date.now()}`,
+        tenant_id: tenantId,
+        subscription_plan: 'Standard Monthly SaaS License',
+        billing_cycle: 'monthly',
+        fee_amount: 5000,
+        next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        maintenance_fee_amount: 2500,
+        maintenance_fee_cycle: '6_monthly',
+        next_maintenance_due_date: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        currency: 'Rs.',
+        notes: `Default terms for ${bizName}`,
+        updated_at: new Date().toISOString()
+      };
+      this.billingTerms.push(terms);
+      this.save('pesticide_billing_terms', this.billingTerms);
+    }
+    return terms;
+  }
+
+  updateBillingTerms(tenantId: string, updates: Partial<TenantBillingTerms>): TenantBillingTerms {
+    this.ensureClientLoaded();
+    const index = this.billingTerms.findIndex(t => t.tenant_id === tenantId);
+    if (index >= 0) {
+      this.billingTerms[index] = {
+        ...this.billingTerms[index],
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+    } else {
+      const newTerm: TenantBillingTerms = {
+        id: `term-${Date.now()}`,
+        tenant_id: tenantId,
+        subscription_plan: updates.subscription_plan || 'Standard Monthly SaaS License',
+        billing_cycle: updates.billing_cycle || 'monthly',
+        fee_amount: updates.fee_amount ?? 5000,
+        next_billing_date: updates.next_billing_date || new Date().toISOString().split('T')[0],
+        maintenance_fee_amount: updates.maintenance_fee_amount ?? 2500,
+        maintenance_fee_cycle: updates.maintenance_fee_cycle || '6_monthly',
+        next_maintenance_due_date: updates.next_maintenance_due_date || new Date().toISOString().split('T')[0],
+        currency: updates.currency || 'Rs.',
+        notes: updates.notes,
+        updated_at: new Date().toISOString()
+      };
+      this.billingTerms.push(newTerm);
+    }
+    this.save('pesticide_billing_terms', this.billingTerms);
+    return this.getBillingTerms(tenantId);
+  }
+
+  getTenantPayments(tenantId: string): TenantPaymentRecord[] {
+    this.ensureClientLoaded();
+    return this.tenantPayments
+      .filter(p => p.tenant_id === tenantId)
+      .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
+  }
+
+  addTenantPayment(payment: Omit<TenantPaymentRecord, 'id' | 'created_at'>): TenantPaymentRecord {
+    this.ensureClientLoaded();
+    const newRecord: TenantPaymentRecord = {
+      ...payment,
+      id: `pay-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    this.tenantPayments.unshift(newRecord);
+    this.save('pesticide_tenant_payments', this.tenantPayments);
+
+    // Auto-advance next due dates when payment is recorded & auto-clear resolved notifications
+    const terms = this.getBillingTerms(payment.tenant_id);
+    if (terms) {
+      if (payment.payment_type === 'subscription') {
+        const currentDue = new Date(terms.next_billing_date);
+        if (terms.billing_cycle === 'monthly') {
+          currentDue.setMonth(currentDue.getMonth() + 1);
+        } else {
+          currentDue.setFullYear(currentDue.getFullYear() + 1);
+        }
+        this.updateBillingTerms(payment.tenant_id, {
+          next_billing_date: currentDue.toISOString().split('T')[0]
+        });
+      } else if (payment.payment_type === 'maintenance') {
+        const currentMaint = new Date(terms.next_maintenance_due_date);
+        if (terms.maintenance_fee_cycle === '6_monthly') {
+          currentMaint.setMonth(currentMaint.getMonth() + 6);
+        } else {
+          currentMaint.setFullYear(currentMaint.getFullYear() + 1);
+        }
+        this.updateBillingTerms(payment.tenant_id, {
+          next_maintenance_due_date: currentMaint.toISOString().split('T')[0]
+        });
+      }
+    }
+
+    return newRecord;
+  }
+
+  // --- REAL-TIME BILLING NOTIFICATIONS EVALUATION ---
+
+  getAdminNotifications(): AdminNotification[] {
+    this.ensureClientLoaded();
+    const notifications: AdminNotification[] = [];
+    const todayStr = '2026-09-24';
+    const today = new Date(todayStr);
+
+    this.tenants.forEach((t) => {
+      const terms = this.getBillingTerms(t.id);
+      if (!terms) return;
+
+      // 1. Subscription Billing Due / Overdue
+      if (terms.next_billing_date) {
+        const dueDate = new Date(terms.next_billing_date);
+        const diffMs = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        const notifyThreshold = terms.billing_cycle === 'yearly' ? 14 : 3;
+
+        if (diffDays <= notifyThreshold) {
+          let severity: 'overdue' | 'warning' = 'warning';
+          let type: AdminNotification['type'] = 'billing_due';
+          let title = '';
+          let message = '';
+
+          if (diffDays < 0) {
+            severity = 'overdue';
+            type = 'billing_overdue';
+            title = `OVERDUE: ${terms.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`;
+            message = `${t.business_name} — ${terms.subscription_plan} (Rs. ${terms.fee_amount.toLocaleString()}) was due on ${terms.next_billing_date} (${Math.abs(diffDays)} day(s) OVERDUE).`;
+          } else if (diffDays === 0) {
+            severity = 'warning';
+            type = 'billing_due';
+            title = `DUE TODAY: ${terms.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`;
+            message = `${t.business_name} — ${terms.subscription_plan} (Rs. ${terms.fee_amount.toLocaleString()}) is due today (${terms.next_billing_date}).`;
+          } else {
+            severity = 'warning';
+            type = 'billing_due';
+            title = `Due Soon: ${terms.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`;
+            message = `${t.business_name} — ${terms.subscription_plan} (Rs. ${terms.fee_amount.toLocaleString()}) is due in ${diffDays} day(s) (${terms.next_billing_date}).`;
+          }
+
+          const notifId = `notif-sub-${t.id}-${terms.next_billing_date}`;
+          if (!this.manualDismissedNotifications.includes(notifId)) {
+            notifications.push({
+              id: notifId,
+              tenant_id: t.id,
+              tenant_name: t.business_name,
+              type,
+              title,
+              message,
+              amount: terms.fee_amount,
+              due_date: terms.next_billing_date,
+              link_url: `/admin/tenants/${t.id}?tab=billing`,
+              is_read: false,
+              is_resolved: false,
+              severity,
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      // 2. Maintenance Fee Due / Overdue
+      if (terms.next_maintenance_due_date) {
+        const maintDate = new Date(terms.next_maintenance_due_date);
+        const diffMs = maintDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays <= 7) {
+          let severity: 'overdue' | 'warning' = 'warning';
+          let type: AdminNotification['type'] = 'maintenance_due';
+          let title = '';
+          let message = '';
+
+          if (diffDays < 0) {
+            severity = 'overdue';
+            type = 'maintenance_overdue';
+            title = `OVERDUE: Maintenance Fee`;
+            message = `${t.business_name} — Maintenance fee (Rs. ${terms.maintenance_fee_amount.toLocaleString()}) was due on ${terms.next_maintenance_due_date} (${Math.abs(diffDays)} day(s) OVERDUE).`;
+          } else if (diffDays === 0) {
+            severity = 'warning';
+            type = 'maintenance_due';
+            title = `DUE TODAY: Maintenance Fee`;
+            message = `${t.business_name} — Maintenance fee (Rs. ${terms.maintenance_fee_amount.toLocaleString()}) is due today (${terms.next_maintenance_due_date}).`;
+          } else {
+            severity = 'warning';
+            type = 'maintenance_due';
+            title = `Due Soon: Maintenance Fee`;
+            message = `${t.business_name} — Maintenance fee (Rs. ${terms.maintenance_fee_amount.toLocaleString()}) is due in ${diffDays} day(s) (${terms.next_maintenance_due_date}).`;
+          }
+
+          const notifId = `notif-maint-${t.id}-${terms.next_maintenance_due_date}`;
+          if (!this.manualDismissedNotifications.includes(notifId)) {
+            notifications.push({
+              id: notifId,
+              tenant_id: t.id,
+              tenant_name: t.business_name,
+              type,
+              title,
+              message,
+              amount: terms.maintenance_fee_amount,
+              due_date: terms.next_maintenance_due_date,
+              link_url: `/admin/tenants/${t.id}?tab=billing`,
+              is_read: false,
+              is_resolved: false,
+              severity,
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+    });
+
+    // Sort overdue first, then nearest due date
+    return notifications.sort((a, b) => {
+      if (a.severity === 'overdue' && b.severity !== 'overdue') return -1;
+      if (a.severity !== 'overdue' && b.severity === 'overdue') return 1;
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    });
+  }
+
+  dismissNotification(id: string): void {
+    this.ensureClientLoaded();
+    if (!this.manualDismissedNotifications.includes(id)) {
+      this.manualDismissedNotifications.push(id);
+      this.save('pesticide_dismissed_notifications', this.manualDismissedNotifications);
+    }
+  }
 }
 
 export const dataStore = new DataStore();
+

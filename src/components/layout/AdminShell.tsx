@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Sparkles,
 } from 'lucide-react';
+import AdminNotificationDropdown from '@/components/layout/AdminNotificationDropdown';
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -81,38 +82,35 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               <Menu className="w-5 h-5" strokeWidth={2} />
             </button>
 
-            {/* Dark Curved Brand Badge */}
-            <div className="bg-[#051329] text-white px-4 py-2 rounded-2xl flex items-center space-x-3 shadow-md border border-[#0B2347]">
-              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-xs">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            {/* Dark Brand Badge Header */}
+            <div className="bg-slate-950 text-white px-4 py-2 rounded-2xl flex items-center space-x-3 shadow-md border border-slate-900">
+              <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs">
+                <svg className="w-5 h-5 text-slate-950" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V7l-9-5zm0 4a3 3 0 110 6 3 3 0 010-6zm0 14.3c-2.5-1-4.7-2.9-5.8-5.3 1.9-1.3 4.2-2 5.8-2s3.9.7 5.8 2c-1.1 2.4-3.3 4.3-5.8 5.3z"/>
                 </svg>
               </div>
               <div className="leading-tight">
                 <div className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
                   <span>KisanDost</span>
-                  <span className="bg-slate-800 text-blue-300 border border-blue-400/30 text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-slate-900 text-amber-300 border border-amber-400/30 text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
                     SUPER ADMIN
                   </span>
                 </div>
-                <div className="text-[9px] font-medium text-slate-400 tracking-wider uppercase">
+                <div className="text-[9px] font-medium text-amber-200/80 tracking-wider uppercase">
                   MULTI-TENANT SAAS OPERATIONS CENTER
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Header Controls matching Screenshot */}
+          {/* Right Header Controls */}
           <div className="flex items-center space-x-3 shrink-0">
-            {/* Bell Icon with Red Dot */}
-            <button className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-            </button>
+            {/* Real-time Billing & Alerts Notification Bell Dropdown */}
+            <AdminNotificationDropdown />
 
             {/* Administrator Profile Pill */}
             <div className="hidden sm:flex items-center space-x-2.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80">
-              <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+              <div className="w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center shadow-xs">
                 M
               </div>
               <div className="text-left text-2xs leading-tight">
@@ -125,16 +123,16 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             {/* Switch to Counter Button */}
             <Link
               href="/dashboard"
-              className="hidden md:flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-300 transition-colors shadow-2xs"
+              className="hidden md:flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-300 transition-colors shadow-2xs"
             >
-              <Store className="w-4 h-4 text-blue-600" />
+              <Store className="w-4 h-4 text-emerald-600" />
               <span>Switch to Shop Counter</span>
             </Link>
 
-            {/* Sign Out Button matching Screenshot */}
+            {/* Sign Out Button */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
@@ -145,7 +143,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       {/* Main Workspace Layout */}
       <div className="flex flex-1 relative">
-        {/* Desktop Sidebar matching Screenshot */}
+        {/* Desktop Sidebar */}
         <aside
           className={`hidden lg:block fixed top-16 bottom-0 left-0 z-30 transition-[width] duration-200 ease-in-out no-print bg-white text-slate-900 border-r border-slate-200 shadow-sm ${
             isCollapsed ? 'w-16' : 'w-64'
@@ -156,7 +154,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <div className={`h-14 flex items-center shrink-0 border-b border-slate-200 ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'}`}>
               {!isCollapsed && (
                 <div className="flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <Sparkles className="w-4 h-4 text-amber-500" />
                   <span className="text-2xs font-medium uppercase tracking-widest text-slate-600">
                     SUPER ADMIN CONTROLS
                   </span>
@@ -185,18 +183,18 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                       relative group flex items-center gap-3 rounded-xl text-xs transition-all duration-150
                       ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-3'}
                       ${active
-                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                        ? 'bg-slate-950 text-white font-semibold shadow-sm'
                         : 'text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900'
                       }
                     `}
                   >
                     <Icon
-                      className={`shrink-0 w-4 h-4 ${active ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'}`}
+                      className={`shrink-0 w-4 h-4 ${active ? 'text-amber-400' : 'text-slate-400 group-hover:text-emerald-600'}`}
                       strokeWidth={2}
                     />
                     {!isCollapsed && <span className="truncate">{item.label}</span>}
                     {!isCollapsed && item.badge && (
-                      <span className="ml-auto text-[10px] font-semibold bg-red-500 text-white px-2 py-0.5 rounded-full shadow-xs">
+                      <span className="ml-auto text-[10px] font-semibold bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full shadow-xs">
                         {item.badge}
                       </span>
                     )}

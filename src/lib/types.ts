@@ -295,3 +295,51 @@ export interface AdminAuditLog {
   created_at: string;
 }
 
+export type BillingCycle = 'monthly' | 'yearly';
+export type FeeCycle = '6_monthly' | 'yearly';
+
+export interface TenantBillingTerms {
+  id: string;
+  tenant_id: string;
+  subscription_plan: string;
+  billing_cycle: BillingCycle;
+  fee_amount: number;
+  next_billing_date: string;
+  maintenance_fee_amount: number;
+  maintenance_fee_cycle: FeeCycle;
+  next_maintenance_due_date: string;
+  currency: string;
+  notes?: string;
+  updated_at: string;
+}
+
+export interface TenantPaymentRecord {
+  id: string;
+  tenant_id: string;
+  payment_type: 'subscription' | 'maintenance' | 'other';
+  amount: number;
+  payment_date: string;
+  payment_method: 'cash' | 'bank_transfer' | 'cheque' | 'other';
+  reference_number?: string;
+  received_by?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface AdminNotification {
+  id: string;
+  tenant_id: string;
+  tenant_name: string;
+  type: 'billing_due' | 'billing_overdue' | 'maintenance_due' | 'maintenance_overdue' | 'system';
+  title: string;
+  message: string;
+  amount: number;
+  due_date: string;
+  link_url: string;
+  is_read: boolean;
+  is_resolved: boolean;
+  severity: 'warning' | 'overdue' | 'info';
+  created_at: string;
+}
+
+

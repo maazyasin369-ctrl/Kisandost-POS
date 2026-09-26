@@ -129,7 +129,29 @@ export default function SalesHistoryPage() {
         getSalesHistory(DEMO_TENANT, undefined, 500),
         getBranches(DEMO_TENANT),
       ]);
-      setRawSales(salesData);
+
+      const localSales = dataStore.getSales();
+      const existingIds = new Set(salesData.map(s => s.id));
+      const formattedLocalSales = localSales
+        .filter(ls => !existingIds.has(ls.id))
+        .map(ls => ({
+          id: ls.id,
+          branch_id: ls.branch_id,
+          sale_number: ls.sale_number,
+          payment_type: ls.payment_type,
+          subtotal: ls.subtotal,
+          discount_total: ls.discount_total,
+          grand_total: ls.grand_total,
+          amount_paid: ls.amount_paid,
+          status: ls.status,
+          return_reason: undefined,
+          created_at: ls.created_at,
+          customers: ls.customer_name ? { name: ls.customer_name, phone: ls.customer_phone ?? '' } : null,
+          profiles: { full_name: ls.sold_by_name ?? 'Staff' },
+          branches: { name: ls.branch_name ?? 'Main Outlet' },
+        })) as unknown as SaleRow[];
+
+      setRawSales([...salesData, ...formattedLocalSales]);
       setBranches(branchesData);
     });
   }, []);

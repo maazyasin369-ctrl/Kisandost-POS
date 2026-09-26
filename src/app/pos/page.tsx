@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { dataStore } from '@/lib/data-store';
+import { createSale } from '@/actions/sales';
 import { Batch, Sale, PaymentType } from '@/lib/types';
 import {
   Search,
@@ -54,7 +55,7 @@ function PaymentModePill({ active, disabled, onClick, icon: Icon, label, activeC
 export default function POSPage() {
   const { showToast } = useToast();
   const branches = dataStore.getBranches();
-  const [branchId, setBranchId] = useState(branches[0]?.id || 'branch-001');
+  const [branchId, setBranchId] = useState(branches[0]?.id || '22222222-2222-2222-2222-222222222222');
 
   const products = dataStore.getProducts();
   const batches = dataStore.getBatches(branchId);
@@ -171,12 +172,14 @@ export default function POSPage() {
   const pendingCredit = grandTotal - totalAmountPaidForSale;
   const creditExceeded = customer && pendingCredit > 0 && ((customer.current_balance || 0) + pendingCredit) > customer.credit_limit;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!cart.length) return;
+
+    // 1. Update client local dataStore for immediate UI feedback & receipt
     const sale = dataStore.createSale({
       branch_id: branchId,
       customer_id: customerId || undefined,
-      sold_by: 'usr-sales1',
+      sold_by: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
       payment_type: paymentType,
       subtotal,
       discount_total: itemDiscounts + billDiscAmt,
@@ -192,9 +195,39 @@ export default function POSPage() {
         line_total: i.line_total,
       })),
     });
+
     setActiveSale(sale);
     showToast(`Sale ${sale.sale_number} completed successfully!`, 'success');
+
+    // Store cart snapshot before resetting
+    const itemsSnapshot = cart.map(i => ({
+      batchId: i.batch.id,
+      productNameSnapshot: i.batch.product_name || 'Pesticide Spray',
+      quantity: i.quantity,
+      unitPrice: i.unit_price,
+      discount: i.discount,
+      lineTotal: i.line_total,
+    }));
+
     setCart([]); setAmountPaidStr(''); setBillDiscountInput('0'); setBillDiscountType('fixed'); setCustomerId(''); setApplyAdvance(false);
+
+    // 2. Persist to Supabase Database
+    try {
+      await createSale({
+        tenantId: '11111111-1111-1111-1111-111111111111',
+        branchId: branchId || '22222222-2222-2222-2222-222222222222',
+        customerId: customerId || undefined,
+        soldBy: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
+        paymentType,
+        subtotal,
+        discountTotal: itemDiscounts + billDiscAmt,
+        grandTotal,
+        amountPaid: totalAmountPaidForSale,
+        items: itemsSnapshot,
+      });
+    } catch (err) {
+      console.error('Failed to sync sale to database:', err);
+    }
   };
 
   return (

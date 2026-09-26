@@ -14,7 +14,9 @@ import {
   StockTransfer,
   Purchase,
   Scheme,
-  DayClosing
+  DayClosing,
+  TenantBillingTerms,
+  TenantPaymentRecord
 } from './types';
 
 
@@ -83,7 +85,7 @@ export const initialTenant: Tenant = demoTenant1;
 
 export const initialBranches: Branch[] = [
   {
-    id: 'branch-001',
+    id: '22222222-2222-2222-2222-222222222222',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     name: 'Multan Grains Market Branch',
     address: 'Shop 14-B, Galla Mandi, Vehari Road, Multan',
@@ -92,7 +94,7 @@ export const initialBranches: Branch[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'branch-002',
+    id: '22222222-2222-2222-2222-333333333333',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     name: 'Khanewal Bypass Branch',
     address: 'Plot 4, Khanewal Road, Multan',
@@ -113,8 +115,8 @@ export const initialBranches: Branch[] = [
 
 export const initialProfiles: Profile[] = [
   {
-    id: 'usr-owner',
-    tenant_id: 'tenant-001',
+    id: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     full_name: 'Chaudhry Tariq Mehmood',
     phone: '+92 300 1234567',
     role: 'owner',
@@ -123,7 +125,7 @@ export const initialProfiles: Profile[] = [
   },
   {
     id: 'usr-mgr1',
-    tenant_id: 'tenant-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     full_name: 'Muhammad Asif (Manager)',
     phone: '+92 302 9988776',
     role: 'branch_manager',
@@ -132,7 +134,7 @@ export const initialProfiles: Profile[] = [
   },
   {
     id: 'usr-sales1',
-    tenant_id: 'tenant-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     full_name: 'Ali Raza (Salesman)',
     phone: '+92 303 5544332',
     role: 'salesman',
@@ -143,8 +145,8 @@ export const initialProfiles: Profile[] = [
 
 export const initialCompanies: Company[] = [
   {
-    id: 'cmp-bayer',
-    tenant_id: 'tenant-001',
+    id: '33333333-3333-3333-3333-111111111111',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     name: 'Bayer CropScience',
     contact_person: 'Shahid Mehmood (TSM)',
     phone: '+92 321 4455667',
@@ -152,8 +154,8 @@ export const initialCompanies: Company[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'cmp-syngenta',
-    tenant_id: 'tenant-001',
+    id: '33333333-3333-3333-3333-222222222222',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     name: 'Syngenta Pakistan',
     contact_person: 'Usman Ali',
     phone: '+92 300 8877665',
@@ -161,8 +163,8 @@ export const initialCompanies: Company[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'cmp-fmc',
-    tenant_id: 'tenant-001',
+    id: '33333333-3333-3333-3333-333333333333',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     name: 'FMC United Chemical',
     contact_person: 'Kamran Bhatti',
     phone: '+92 312 9900112',
@@ -170,8 +172,8 @@ export const initialCompanies: Company[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'cmp-tara',
-    tenant_id: 'tenant-001',
+    id: '33333333-3333-3333-3333-444444444444',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     name: 'Tara Crop Science (Local)',
     contact_person: 'Rana Sohail',
     phone: '+92 301 3344556',
@@ -182,9 +184,9 @@ export const initialCompanies: Company[] = [
 
 export const initialProducts: Product[] = [
   {
-    id: 'prod-001',
-    tenant_id: 'tenant-001',
-    company_id: 'cmp-bayer',
+    id: '44444444-4444-4444-4444-111111111111',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    company_id: '33333333-3333-3333-3333-111111111111',
     company_name: 'Bayer CropScience',
     name: 'Confidor 200 SL (Imidacloprid)',
     active_ingredient: 'Imidacloprid 200g/L',
@@ -197,9 +199,9 @@ export const initialProducts: Product[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'prod-002',
-    tenant_id: 'tenant-001',
-    company_id: 'cmp-fmc',
+    id: '44444444-4444-4444-4444-222222222222',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    company_id: '33333333-3333-3333-3333-333333333333',
     company_name: 'FMC United Chemical',
     name: 'Coragen 20 SC (Chlorantraniliprole)',
     active_ingredient: 'Chlorantraniliprole 200g/L',
@@ -212,9 +214,9 @@ export const initialProducts: Product[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'prod-003',
-    tenant_id: 'tenant-001',
-    company_id: 'cmp-syngenta',
+    id: '44444444-4444-4444-4444-333333333333',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    company_id: '33333333-3333-3333-3333-222222222222',
     company_name: 'Syngenta Pakistan',
     name: 'Match 50 EC (Lufenuron)',
     active_ingredient: 'Lufenuron 50g/L',
@@ -227,9 +229,9 @@ export const initialProducts: Product[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: 'prod-004',
-    tenant_id: 'tenant-001',
-    company_id: 'cmp-tara',
+    id: '44444444-4444-4444-4444-444444444444',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    company_id: '33333333-3333-3333-3333-444444444444',
     company_name: 'Tara Crop Science (Local)',
     name: 'Tara Emamectin Benzoate 1.9 EC',
     active_ingredient: 'Emamectin Benzoate 19g/L',
@@ -243,8 +245,8 @@ export const initialProducts: Product[] = [
   },
   {
     id: 'prod-005',
-    tenant_id: 'tenant-001',
-    company_id: 'cmp-bayer',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    company_id: '33333333-3333-3333-3333-111111111111',
     company_name: 'Bayer CropScience',
     name: 'Nativo 75 WG (Tebuconazole + Trifloxystrobin)',
     active_ingredient: 'Tebuconazole 50% + Trifloxystrobin 25%',
@@ -260,9 +262,9 @@ export const initialProducts: Product[] = [
 
 export const initialBatches: Batch[] = [
   {
-    id: 'batch-001',
-    product_id: 'prod-001',
-    branch_id: 'branch-001',
+    id: '55555555-5555-5555-5555-111111111111',
+    product_id: '44444444-4444-4444-4444-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     batch_number: 'BAY-2025-09A',
     manufacture_date: '2025-01-10',
     expiry_date: '2026-11-30', // FEFO nearest expiry
@@ -276,8 +278,8 @@ export const initialBatches: Batch[] = [
   },
   {
     id: 'batch-002',
-    product_id: 'prod-001',
-    branch_id: 'branch-001',
+    product_id: '44444444-4444-4444-4444-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     batch_number: 'BAY-2025-12B',
     manufacture_date: '2025-02-01',
     expiry_date: '2027-02-28', // Later expiry
@@ -290,9 +292,9 @@ export const initialBatches: Batch[] = [
     company_name: 'Bayer CropScience'
   },
   {
-    id: 'batch-003',
-    product_id: 'prod-002',
-    branch_id: 'branch-001',
+    id: '55555555-5555-5555-5555-222222222222',
+    product_id: '44444444-4444-4444-4444-222222222222',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     batch_number: 'FMC-COR-441',
     manufacture_date: '2025-01-01',
     expiry_date: '2026-09-15', // Expiring in ~1 month!
@@ -305,9 +307,9 @@ export const initialBatches: Batch[] = [
     company_name: 'FMC United Chemical'
   },
   {
-    id: 'batch-004',
-    product_id: 'prod-003',
-    branch_id: 'branch-001',
+    id: '55555555-5555-5555-5555-333333333333',
+    product_id: '44444444-4444-4444-4444-333333333333',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     batch_number: 'SYN-MAT-102',
     manufacture_date: '2025-02-15',
     expiry_date: '2027-01-10',
@@ -321,8 +323,8 @@ export const initialBatches: Batch[] = [
   },
   {
     id: 'batch-005',
-    product_id: 'prod-004',
-    branch_id: 'branch-001',
+    product_id: '44444444-4444-4444-4444-444444444444',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     batch_number: 'TARA-EMA-77',
     manufacture_date: '2025-03-01',
     expiry_date: '2026-12-31',
@@ -337,7 +339,7 @@ export const initialBatches: Batch[] = [
   {
     id: 'batch-006',
     product_id: 'prod-005',
-    branch_id: 'branch-001',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     batch_number: 'BAY-NAT-801',
     manufacture_date: '2025-01-20',
     expiry_date: '2027-05-20',
@@ -353,9 +355,9 @@ export const initialBatches: Batch[] = [
 
 export const initialCustomers: Customer[] = [
   {
-    id: 'cust-001',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    id: '77777777-7777-7777-7777-111111111111',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     name: 'Malik Mohammad Akram',
     phone: '+92 300 9876543',
     address: 'Mouza Shahpur, Tehsil Multan',
@@ -367,9 +369,9 @@ export const initialCustomers: Customer[] = [
     created_at: '2024-01-15T00:00:00Z'
   },
   {
-    id: 'cust-002',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    id: '77777777-7777-7777-7777-222222222222',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     name: 'Rana Zulfiqar Ali',
     phone: '+92 302 1122334',
     address: 'Chak 21-MR, Multan',
@@ -381,9 +383,9 @@ export const initialCustomers: Customer[] = [
     created_at: '2024-02-10T00:00:00Z'
   },
   {
-    id: 'cust-003',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    id: '77777777-7777-7777-7777-333333333333',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     name: 'Haji Ghulam Rasool',
     phone: '+92 304 5566778',
     address: 'Basti Malook, Lodhran Road',
@@ -396,8 +398,8 @@ export const initialCustomers: Customer[] = [
   },
   {
     id: 'cust-004',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     name: 'Jam Sajjad Hussain',
     phone: '+92 306 4433221',
     address: 'Khad Factory Area, Multan',
@@ -410,8 +412,8 @@ export const initialCustomers: Customer[] = [
   },
   {
     id: 'cust-maaz',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     name: 'Maaz Yasin',
     phone: '+92 300 7766554',
     address: 'Basti Malook, Multan',
@@ -427,15 +429,15 @@ export const initialCustomers: Customer[] = [
 export const initialSales: Sale[] = [
   {
     id: 'sale-001',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     branch_name: 'Multan Grains Market Branch',
     sale_number: 'MUL-0104',
-    customer_id: 'cust-001',
+    customer_id: '77777777-7777-7777-7777-111111111111',
     customer_name: 'Malik Mohammad Akram',
     customer_phone: '+92 300 9876543',
-    sold_by: 'usr-sales1',
-    sold_by_name: 'Ali Raza',
+    sold_by: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
+    sold_by_name: 'Chaudhry Tariq Mehmood',
     payment_type: 'partial',
     subtotal: 18500,
     discount_total: 500,
@@ -448,7 +450,7 @@ export const initialSales: Sale[] = [
       {
         id: 'si-001',
         sale_id: 'sale-001',
-        batch_id: 'batch-001',
+        batch_id: '55555555-5555-5555-5555-111111111111',
         product_name_snapshot: 'Confidor 200 SL (Imidacloprid)',
         quantity: 10,
         unit_price: 1850,
@@ -461,15 +463,15 @@ export const initialSales: Sale[] = [
   },
   {
     id: 'sale-002',
-    tenant_id: 'tenant-001',
-    branch_id: 'branch-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    branch_id: '22222222-2222-2222-2222-222222222222',
     branch_name: 'Multan Grains Market Branch',
     sale_number: 'MUL-0105',
-    customer_id: 'cust-002',
+    customer_id: '77777777-7777-7777-7777-222222222222',
     customer_name: 'Rana Zulfiqar Ali',
     customer_phone: '+92 302 1122334',
-    sold_by: 'usr-sales1',
-    sold_by_name: 'Ali Raza',
+    sold_by: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
+    sold_by_name: 'Chaudhry Tariq Mehmood',
     payment_type: 'cash',
     subtotal: 5500,
     discount_total: 0,
@@ -482,7 +484,7 @@ export const initialSales: Sale[] = [
       {
         id: 'si-002',
         sale_id: 'sale-002',
-        batch_id: 'batch-003',
+        batch_id: '55555555-5555-5555-5555-222222222222',
         product_name_snapshot: 'Coragen 20 SC (Chlorantraniliprole)',
         quantity: 2,
         unit_price: 2750,
@@ -498,8 +500,8 @@ export const initialSales: Sale[] = [
 export const initialLedger: CreditLedgerEntry[] = [
   {
     id: 'ledg-001',
-    tenant_id: 'tenant-001',
-    customer_id: 'cust-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    customer_id: '77777777-7777-7777-7777-111111111111',
     customer_name: 'Malik Mohammad Akram',
     sale_id: 'sale-001',
     sale_number: 'MUL-0104',
@@ -511,7 +513,7 @@ export const initialLedger: CreditLedgerEntry[] = [
   },
   {
     id: 'ledg-mz-001',
-    tenant_id: 'tenant-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     customer_id: 'cust-maaz',
     customer_name: 'Maaz Yasin',
     type: 'payment',
@@ -522,7 +524,7 @@ export const initialLedger: CreditLedgerEntry[] = [
   },
   {
     id: 'ledg-mz-002',
-    tenant_id: 'tenant-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
     customer_id: 'cust-maaz',
     customer_name: 'Maaz Yasin',
     type: 'sale_credit',
@@ -710,3 +712,98 @@ export const initialDayClosings: DayClosing[] = [
     created_at: '2026-08-24T19:00:00Z'
   }
 ];
+
+export const initialBillingTerms: TenantBillingTerms[] = [
+  {
+    id: 'term-1',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    subscription_plan: 'Standard Monthly SaaS License',
+    billing_cycle: 'monthly',
+    fee_amount: 5000,
+    next_billing_date: '2026-09-26', // Due in 2 days (Due Soon warning)
+    maintenance_fee_amount: 2500,
+    maintenance_fee_cycle: '6_monthly',
+    next_maintenance_due_date: '2026-10-15',
+    currency: 'Rs.',
+    notes: 'Standard 1-outlet monthly subscription plan with 6-month maintenance.',
+    updated_at: '2026-08-26T10:00:00Z'
+  },
+  {
+    id: 'term-2',
+    tenant_id: '22222222-2222-2222-2222-222222222222',
+    subscription_plan: 'Enterprise Yearly SaaS License',
+    billing_cycle: 'yearly',
+    fee_amount: 50000,
+    next_billing_date: '2026-09-22', // 2 days OVERDUE (Red Escalation)
+    maintenance_fee_amount: 5000,
+    maintenance_fee_cycle: 'yearly',
+    next_maintenance_due_date: '2026-09-20', // 4 days OVERDUE (Red Escalation)
+    currency: 'Rs.',
+    notes: 'Full multi-outlet annual package with priority phone support.',
+    updated_at: '2025-09-22T10:00:00Z'
+  }
+];
+
+export const initialTenantPayments: TenantPaymentRecord[] = [
+  {
+    id: 'pay-001',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    payment_type: 'subscription',
+    amount: 5000,
+    payment_date: '2026-08-26',
+    payment_method: 'bank_transfer',
+    reference_number: 'HBL-991204',
+    received_by: 'Super Admin',
+    notes: 'Monthly SaaS fee for August 2026',
+    created_at: '2026-08-26T11:00:00Z'
+  },
+  {
+    id: 'pay-002',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    payment_type: 'subscription',
+    amount: 5000,
+    payment_date: '2026-07-26',
+    payment_method: 'cash',
+    reference_number: 'CSH-0082',
+    received_by: 'Super Admin',
+    notes: 'Monthly SaaS fee for July 2026',
+    created_at: '2026-07-26T09:30:00Z'
+  },
+  {
+    id: 'pay-003',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    payment_type: 'maintenance',
+    amount: 2500,
+    payment_date: '2026-04-15',
+    payment_method: 'bank_transfer',
+    reference_number: 'MCB-441029',
+    received_by: 'Super Admin',
+    notes: '6-Monthly system maintenance fee',
+    created_at: '2026-04-15T14:20:00Z'
+  },
+  {
+    id: 'pay-004',
+    tenant_id: '22222222-2222-2222-2222-222222222222',
+    payment_type: 'subscription',
+    amount: 50000,
+    payment_date: '2025-09-22',
+    payment_method: 'bank_transfer',
+    reference_number: 'UBL-881290',
+    received_by: 'Super Admin',
+    notes: 'Yearly enterprise subscription (2025-2026)',
+    created_at: '2025-09-22T10:00:00Z'
+  },
+  {
+    id: 'pay-005',
+    tenant_id: '22222222-2222-2222-2222-222222222222',
+    payment_type: 'maintenance',
+    amount: 5000,
+    payment_date: '2025-09-20',
+    payment_method: 'cheque',
+    reference_number: 'CHQ-551029',
+    received_by: 'Super Admin',
+    notes: 'Annual server maintenance fee',
+    created_at: '2025-09-20T12:00:00Z'
+  }
+];
+
