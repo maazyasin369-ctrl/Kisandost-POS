@@ -1,7 +1,7 @@
 // Database Types for Pesticide Shop Management SaaS
 
 export type Role = 'super_admin' | 'owner' | 'branch_manager' | 'salesman';
-export type SubscriptionStatus = 'trial' | 'active' | 'suspended';
+export type SubscriptionStatus = 'trial' | 'active' | 'suspended' | 'pending_approval' | 'rejected';
 export type BranchMode = 'independent' | 'consolidated' | 'hybrid';
 export type FormulationType = 'EC' | 'WP' | 'SL' | 'SC' | 'granules' | 'powder' | 'other';
 export type PackUnit = 'ml' | 'L' | 'g' | 'kg';
@@ -9,6 +9,22 @@ export type PaymentType = 'cash' | 'credit' | 'partial';
 export type TransferStatus = 'pending' | 'in_transit' | 'received' | 'cancelled';
 export type LedgerType = 'sale_credit' | 'payment' | 'adjustment';
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'other';
+
+export interface PrintSettings {
+  paper_width: '80mm' | '58mm';
+  show_license: boolean;
+  show_batch: boolean;
+  footer_message: string;
+  copies: number;
+}
+
+export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
+  paper_width: '80mm',
+  show_license: true,
+  show_batch: true,
+  footer_message: 'جزاك اللهُ خيرًا — Powered by KisanDost',
+  copies: 1,
+};
 
 export interface Tenant {
   id: string;
@@ -22,6 +38,7 @@ export interface Tenant {
   settings: {
     branch_mode: BranchMode;
     features?: Record<string, boolean>;
+    print_settings?: PrintSettings;
   };
   created_at: string;
 }
@@ -45,6 +62,12 @@ export interface Profile {
   branch_id?: string;
   is_active: boolean;
   created_at: string;
+  // Credential management fields (stored in mock; in prod, auth lives in Supabase Auth only)
+  username?: string;
+  email?: string;
+  force_password_change?: boolean;
+  account_disabled_at?: string | null;
+  sessions_invalidated_at?: string | null;
 }
 
 export interface Company {
@@ -135,6 +158,8 @@ export interface Sale {
   grand_total: number;
   amount_paid: number;
   remaining_balance?: number;
+  previous_udhaar_balance?: number;
+  total_udhaar_outstanding?: number;
   status: 'completed' | 'void' | 'returned';
   return_reason?: string;
   items?: SaleItem[];
@@ -295,19 +320,19 @@ export interface AdminAuditLog {
   created_at: string;
 }
 
-export type BillingCycle = 'monthly' | 'yearly';
-export type FeeCycle = '6_monthly' | 'yearly';
-
+// Simplified billing: installation (one-time) + one recurring charge with flexible interval
+// recurring_interval_months: null = no recurring charge
 export interface TenantBillingTerms {
   id: string;
   tenant_id: string;
-  subscription_plan: string;
-  billing_cycle: BillingCycle;
-  fee_amount: number;
-  next_billing_date: string;
-  maintenance_fee_amount: number;
-  maintenance_fee_cycle: FeeCycle;
-  next_maintenance_due_date: string;
+  // Installation (one-time)
+  installation_charges: number;
+  installation_date: string | null;
+  // Recurring charge
+  recurring_amount: number;
+  recurring_interval_months: number | null; // null = no recurring charge
+  first_recurring_date: string | null; // the start date from which next_due_date is calculated
+  next_due_date: string | null;        // auto-calculated, advances each time a recurring payment is logged
   currency: string;
   notes?: string;
   updated_at: string;
@@ -316,7 +341,7 @@ export interface TenantBillingTerms {
 export interface TenantPaymentRecord {
   id: string;
   tenant_id: string;
-  payment_type: 'subscription' | 'maintenance' | 'other';
+  payment_type: 'installation' | 'recurring';
   amount: number;
   payment_date: string;
   payment_method: 'cash' | 'bank_transfer' | 'cheque' | 'other';
@@ -330,7 +355,7 @@ export interface AdminNotification {
   id: string;
   tenant_id: string;
   tenant_name: string;
-  type: 'billing_due' | 'billing_overdue' | 'maintenance_due' | 'maintenance_overdue' | 'system';
+  type: 'billing_due' | 'billing_overdue' | 'system';
   title: string;
   message: string;
   amount: number;
@@ -342,4 +367,29 @@ export interface AdminNotification {
   created_at: string;
 }
 
+export interface CredentialAuditEntry {
+  id: string;
+  profile_id: string;
+  tenant_id: string;
+  action: 'RESET_PASSWORD' | 'CHANGE_USERNAME' | 'DISABLE_ACCOUNT' | 'ENABLE_ACCOUNT' | 'SIGN_OUT_ALL' | 'CREATED';
+  performed_by: string;
+  note?: string;
+  created_at: string;
+}
+
+export interface PendingRegistration {
+  id: string;
+  tenant_id: string;
+  profile_id: string;
+  full_name: string;
+  business_name: string;
+  phone: string;
+  email?: string;
+  city: string;
+  username: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  review_note?: string;
+  reviewed_at?: string;
+}
 

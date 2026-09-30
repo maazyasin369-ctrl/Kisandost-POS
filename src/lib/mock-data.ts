@@ -713,33 +713,34 @@ export const initialDayClosings: DayClosing[] = [
   }
 ];
 
+// Demo tenant billing terms — new simplified model
+// Tenant 1: Rs. 5,000 every 1 month (monthly), due soon
+// Tenant 2: Rs. 30,000 every 6 months, overdue
 export const initialBillingTerms: TenantBillingTerms[] = [
   {
     id: 'term-1',
     tenant_id: '11111111-1111-1111-1111-111111111111',
-    subscription_plan: 'Standard Monthly SaaS License',
-    billing_cycle: 'monthly',
-    fee_amount: 5000,
-    next_billing_date: '2026-09-26', // Due in 2 days (Due Soon warning)
-    maintenance_fee_amount: 2500,
-    maintenance_fee_cycle: '6_monthly',
-    next_maintenance_due_date: '2026-10-15',
+    installation_charges: 15000,
+    installation_date: '2024-01-01',
+    recurring_amount: 5000,
+    recurring_interval_months: 1, // every 1 month
+    first_recurring_date: '2024-02-01',
+    next_due_date: '2026-09-26', // Due in 2 days (Due Soon warning)
     currency: 'Rs.',
-    notes: 'Standard 1-outlet monthly subscription plan with 6-month maintenance.',
+    notes: 'Monthly SaaS subscription — 1 outlet Multan.',
     updated_at: '2026-08-26T10:00:00Z'
   },
   {
     id: 'term-2',
     tenant_id: '22222222-2222-2222-2222-222222222222',
-    subscription_plan: 'Enterprise Yearly SaaS License',
-    billing_cycle: 'yearly',
-    fee_amount: 50000,
-    next_billing_date: '2026-09-22', // 2 days OVERDUE (Red Escalation)
-    maintenance_fee_amount: 5000,
-    maintenance_fee_cycle: 'yearly',
-    next_maintenance_due_date: '2026-09-20', // 4 days OVERDUE (Red Escalation)
+    installation_charges: 25000,
+    installation_date: '2025-02-15',
+    recurring_amount: 30000,
+    recurring_interval_months: 6, // every 6 months
+    first_recurring_date: '2025-03-22',
+    next_due_date: '2026-09-22', // 2 days OVERDUE (Red Escalation)
     currency: 'Rs.',
-    notes: 'Full multi-outlet annual package with priority phone support.',
+    notes: 'Semi-annual subscription package — Sahiwal outlet.',
     updated_at: '2025-09-22T10:00:00Z'
   }
 ];
@@ -748,62 +749,61 @@ export const initialTenantPayments: TenantPaymentRecord[] = [
   {
     id: 'pay-001',
     tenant_id: '11111111-1111-1111-1111-111111111111',
-    payment_type: 'subscription',
+    payment_type: 'recurring',
     amount: 5000,
     payment_date: '2026-08-26',
     payment_method: 'bank_transfer',
     reference_number: 'HBL-991204',
     received_by: 'Super Admin',
-    notes: 'Monthly SaaS fee for August 2026',
+    notes: 'Monthly recurring charge — August 2026',
     created_at: '2026-08-26T11:00:00Z'
   },
   {
     id: 'pay-002',
     tenant_id: '11111111-1111-1111-1111-111111111111',
-    payment_type: 'subscription',
+    payment_type: 'recurring',
     amount: 5000,
     payment_date: '2026-07-26',
     payment_method: 'cash',
     reference_number: 'CSH-0082',
     received_by: 'Super Admin',
-    notes: 'Monthly SaaS fee for July 2026',
+    notes: 'Monthly recurring charge — July 2026',
     created_at: '2026-07-26T09:30:00Z'
   },
   {
     id: 'pay-003',
     tenant_id: '11111111-1111-1111-1111-111111111111',
-    payment_type: 'maintenance',
-    amount: 2500,
-    payment_date: '2026-04-15',
+    payment_type: 'installation',
+    amount: 15000,
+    payment_date: '2024-01-01',
     payment_method: 'bank_transfer',
     reference_number: 'MCB-441029',
     received_by: 'Super Admin',
-    notes: '6-Monthly system maintenance fee',
-    created_at: '2026-04-15T14:20:00Z'
+    notes: 'One-time installation charge',
+    created_at: '2024-01-01T14:20:00Z'
   },
   {
     id: 'pay-004',
     tenant_id: '22222222-2222-2222-2222-222222222222',
-    payment_type: 'subscription',
-    amount: 50000,
+    payment_type: 'recurring',
+    amount: 30000,
     payment_date: '2025-09-22',
     payment_method: 'bank_transfer',
     reference_number: 'UBL-881290',
     received_by: 'Super Admin',
-    notes: 'Yearly enterprise subscription (2025-2026)',
+    notes: '6-month recurring charge (Mar–Sep 2026)',
     created_at: '2025-09-22T10:00:00Z'
   },
   {
     id: 'pay-005',
     tenant_id: '22222222-2222-2222-2222-222222222222',
-    payment_type: 'maintenance',
-    amount: 5000,
-    payment_date: '2025-09-20',
+    payment_type: 'installation',
+    amount: 25000,
+    payment_date: '2025-02-15',
     payment_method: 'cheque',
     reference_number: 'CHQ-551029',
     received_by: 'Super Admin',
-    notes: 'Annual server maintenance fee',
-    created_at: '2025-09-20T12:00:00Z'
+    notes: 'One-time installation charge (Sahiwal outlet setup)',
+    created_at: '2025-02-15T12:00:00Z'
   }
 ];
-

@@ -2,13 +2,20 @@ import type { Metadata } from 'next';
 import './globals.css';
 import AppShell from '@/components/layout/AppShell';
 import { ToastProvider } from '@/components/ui/Toast';
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Poppins, DM_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const jakarta = Plus_Jakarta_Sans({
+const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-jakarta',
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-dm-sans',
   display: 'swap',
 });
 
@@ -23,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn(jakarta.variable)}>
-      <body className="min-h-screen bg-white text-slate-900 font-sans antialiased">
+    <html lang="en" className={cn(poppins.variable, dmSans.variable)}>
+      <body className="min-h-screen bg-white text-slate-900 antialiased">
         <ToastProvider>
           <AppShell>
             {children}

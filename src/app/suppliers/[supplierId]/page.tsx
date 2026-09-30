@@ -12,13 +12,14 @@ import {
   FileText,
   Check,
   X,
-  Plus,
   User,
-  ShieldCheck
+  Printer
 } from 'lucide-react';
 import { dataStore } from '@/lib/data-store';
 import { Supplier, SupplierLedgerEntry } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
+import PrintableReceipt, { SupplierPaymentData } from '@/components/PrintableReceipt';
+import { usePrintReceipt } from '@/lib/use-print-receipt';
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ supplierId: string }> }) {
   const resolvedParams = use(params);
@@ -33,6 +34,10 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentNote, setPaymentNote] = useState('');
+
+  // Thermal print receipt state
+  const [supplierReceiptData, setSupplierReceiptData] = useState<SupplierPaymentData | null>(null);
+  const { triggerPrint } = usePrintReceipt();
 
   const refreshData = () => {
     setSupplier(dataStore.getSupplierById(supplierId));
@@ -54,10 +59,15 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     );
   }
 
+  const currentBalance = supplier.current_balance || 0;
+
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) return;
+
+    const prevBal = currentBalance;
+    const newBal = prevBal - amount;
 
     dataStore.recordSupplierPayment({
       supplier_id: supplier.id,
@@ -68,13 +78,25 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
     refreshData();
     showToast(`Rs. ${amount.toLocaleString()} paid to ${supplier.name} via ${paymentMethod}`, 'success');
+
+    // Show thermal print slip modal
+    setSupplierReceiptData({
+      voucher_number: `SUP-PAY-${Date.now().toString().slice(-6)}`,
+      supplier_name: supplier.name,
+      date: new Date().toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' }),
+      previous_balance: prevBal,
+      amount_paid: amount,
+      new_balance: newBal,
+      payment_method: paymentMethod,
+      reference_number: paymentNote.trim() || undefined,
+      notes: paymentNote.trim() || undefined,
+    });
+
     setShowPaymentModal(false);
     setPaymentAmount('');
     setPaymentMethod('Cash');
     setPaymentNote('');
   };
-
-  const currentBalance = supplier.current_balance || 0;
 
   return (
     <div className="space-y-6">
@@ -141,7 +163,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
         <div className="p-4 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800 text-sm flex items-center justify-between">
           <span className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-emerald-700" />
-            <span>Supplier Account Statement & Ledger History</span>
+            <span>Supplier Account Statement &amp; Ledger History</span>
           </span>
           <span className="text-xs text-slate-500 font-normal">{ledgerEntries.length} transactions recorded</span>
         </div>
@@ -189,16 +211,40 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                     </div>
                   </div>
 
-                  <div className="text-right space-y-1 shrink-0">
-                    <div className={`font-semibold text-base font-mono ${isPayment ? 'text-emerald-700' : 'text-amber-800'}`}>
-                      {isPayment ? `- Rs. ${l.amount.toLocaleString()}` : `+ Rs. ${l.amount.toLocaleString()}`}
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right space-y-1">
+                      <div className={`font-semibold text-base font-mono ${isPayment ? 'text-emerald-700' : 'text-amber-800'}`}>
+                        {isPayment ? `- Rs. ${l.amount.toLocaleString()}` : `+ Rs. ${l.amount.toLocaleString()}`}
+                      </div>
+                      <div className="text-[11px] font-medium text-slate-500">
+                        Running Bal:{' '}
+                        <span className={l.running_balance > 0 ? 'text-amber-800 font-semibold font-mono' : 'text-emerald-700 font-semibold font-mono'}>
+                          Rs. {l.running_balance.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-[11px] font-medium text-slate-500">
-                      Running Bal:{' '}
-                      <span className={l.running_balance > 0 ? 'text-amber-800 font-semibold font-mono' : 'text-emerald-700 font-semibold font-mono'}>
-                        Rs. {l.running_balance.toLocaleString()}
-                      </span>
-                    </div>
+
+                    {isPayment && (
+                      <button
+                        onClick={() => {
+                          setSupplierReceiptData({
+                            voucher_number: `SUP-PAY-${l.id.slice(-6)}`,
+                            supplier_name: supplier.name,
+                            date: new Date(l.created_at).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' }),
+                            previous_balance: l.running_balance + l.amount,
+                            amount_paid: l.amount,
+                            new_balance: l.running_balance,
+                            payment_method: l.payment_method || 'Cash',
+                            reference_number: l.note,
+                          });
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer text-2xs font-semibold flex items-center gap-1"
+                        title="Print Supplier Payment Slip"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Slip</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -299,10 +345,49 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   className="flex-1 font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-1 shadow-md transition-all cursor-pointer text-white bg-emerald-700 hover:bg-emerald-800"
                 >
                   <Check className="h-4 w-4 stroke-[3]" />
-                  <span>Record Payment</span>
+                  <span>Record Payment &amp; Print Slip</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Payment Thermal Slip Modal */}
+      {supplierReceiptData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-950 text-white p-4 flex items-center justify-between no-print">
+              <div className="flex items-center space-x-2">
+                <Printer className="h-4 w-4 text-amber-400" />
+                <span className="font-bold text-xs">Supplier Payment Slip ({supplierReceiptData.voucher_number})</span>
+              </div>
+              <button onClick={() => setSupplierReceiptData(null)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-100 flex justify-center max-h-[70vh] overflow-y-auto">
+              <div className="bg-white p-2 shadow-md border border-slate-300 rounded">
+                <PrintableReceipt type="supplier_payment" supplierPayment={supplierReceiptData} />
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between no-print">
+              <button
+                onClick={() => setSupplierReceiptData(null)}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={triggerPrint}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Thermal Slip</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

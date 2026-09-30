@@ -148,7 +148,7 @@ export default function SuperAdminDashboardPage() {
               </div>
               <div>
                 <h2 className="font-semibold text-base text-slate-900">Upcoming &amp; Overdue Tenant Billing</h2>
-                <p className="text-2xs text-slate-500 font-normal">Real-time alerts for subscription dues and annual maintenance fees</p>
+                <p className="text-2xs text-slate-500 font-normal">Real-time alerts for tenant recurring billing dues and overdue charges</p>
               </div>
             </div>
             <Link

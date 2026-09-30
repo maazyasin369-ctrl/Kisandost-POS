@@ -29,6 +29,13 @@ import {
   AlertCircle,
   Sparkles,
   ShieldCheck,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Copy,
+  MessageCircle,
+  RefreshCw,
+  Lock,
 } from 'lucide-react';
 import { SubscriptionStatus } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
@@ -66,6 +73,78 @@ export default function SuperAdminTenantsPage() {
   };
 
   const [formData, setFormData] = useState(initialFormState);
+
+  // Credential section state
+  const [credForm, setCredForm] = useState({
+    username: '',
+    password: '',
+    email: '',
+    force_password_change: true,
+    showPassword: false,
+  });
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'taken' | 'available'>('idle');
+  const usernameDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Post-creation credentials reveal card
+  const [credsCard, setCredsCard] = useState<{
+    open: boolean;
+    tenantId: string;
+    businessName: string;
+    username: string;
+    password: string;
+    email: string;
+  } | null>(null);
+
+  const generateStrongPassword = () => {
+    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const specials = '!@#$%&*';
+    let pwd = '';
+    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+    pwd += specials[Math.floor(Math.random() * specials.length)];
+    pwd += Math.floor(Math.random() * 90 + 10);
+    return pwd.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const getPasswordStrength = (pwd: string): { label: string; color: string; bars: number } => {
+    if (!pwd) return { label: '', color: 'bg-slate-200', bars: 0 };
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+    if (score <= 1) return { label: 'Weak', color: 'bg-red-500', bars: 1 };
+    if (score === 2) return { label: 'Fair', color: 'bg-amber-500', bars: 2 };
+    if (score === 3) return { label: 'Good', color: 'bg-yellow-400', bars: 3 };
+    if (score === 4) return { label: 'Strong', color: 'bg-emerald-500', bars: 4 };
+    return { label: 'Very Strong', color: 'bg-emerald-600', bars: 5 };
+  };
+
+  const handleUsernameChange = (value: string) => {
+    setCredForm(prev => ({ ...prev, username: value }));
+    setUsernameStatus('idle');
+    if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length < 4) return;
+    setUsernameStatus('checking');
+    usernameDebounceRef.current = setTimeout(() => {
+      const available = dataStore.checkUsernameAvailable(trimmed);
+      setUsernameStatus(available ? 'available' : 'taken');
+    }, 500);
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(`${label} copied to clipboard!`, 'success');
+    }).catch(() => {
+      showToast('Copy failed — please copy manually.', 'info');
+    });
+  };
+
+  const shareViaWhatsApp = (creds: { businessName: string; username: string; password: string; email: string }) => {
+    const msg = `🌿 *KisanDost Login Credentials*\n\n*Shop:* ${creds.businessName}\n*Username:* ${creds.username}${creds.email ? `\n*Email:* ${creds.email}` : ''}\n*Password:* ${creds.password}\n\n⚠️ Please change your password on first login.\n\n_Powered by KisanDost POS_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  };
 
   const reloadTenants = () => {
     setTenants([...dataStore.getTenants()]);
@@ -163,10 +242,6 @@ export default function SuperAdminTenantsPage() {
       setFormError('Owner Phone Number is required.');
       return;
     }
-    if (!formData.owner_email.trim()) {
-      setFormError('Owner Email Address is required for account creation.');
-      return;
-    }
     if (!formData.city.trim()) {
       setFormError('City is required.');
       return;
@@ -199,21 +274,39 @@ export default function SuperAdminTenantsPage() {
     }
 
     // Attempt Creation via DataStore
-    const result = dataStore.createTenant(formData);
+    const result = dataStore.createTenant({
+      ...formData,
+      username: credForm.username.trim() || undefined,
+      password: credForm.password.trim() || undefined,
+      owner_email: credForm.email.trim() || formData.owner_email.trim(),
+      force_password_change: credForm.force_password_change,
+    });
 
     if (!result.success || !result.tenant) {
       setFormError(result.error || 'Failed to create tenant.');
       return;
     }
 
-    // Success!
+    // Success! Close the modal and show the one-time credentials card
     reloadTenants();
-    showToast(`Tenant shop '${result.tenant.business_name}' created successfully!`, 'success');
     setIsCreateModalOpen(false);
     setFormData(initialFormState);
+    setCredForm({ username: '', password: '', email: '', force_password_change: true, showPassword: false });
+    setUsernameStatus('idle');
 
-    // Redirect to the newly created tenant's detail page (Feature Access screen)
-    router.push(`/admin/tenants/${result.tenant.id}`);
+    if (result.credentials) {
+      setCredsCard({
+        open: true,
+        tenantId: result.tenant.id,
+        businessName: result.tenant.business_name,
+        username: result.credentials.username,
+        password: result.credentials.password,
+        email: result.credentials.email,
+      });
+    } else {
+      showToast(`Tenant shop '${result.tenant.business_name}' created successfully!`, 'success');
+      router.push(`/admin/tenants/${result.tenant.id}`);
+    }
   };
 
   const filteredTenants = tenants.filter((t) => {
@@ -876,6 +969,142 @@ export default function SuperAdminTenantsPage() {
 
               </div>
 
+              {/* Section 4: Owner Login Credentials */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <KeyRound className="w-4 h-4 text-amber-600" />
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">4. Owner Login Credentials</h4>
+                  <span className="text-2xs text-slate-400 font-normal ml-1">(Login works with username OR email)</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* Username */}
+                  <div className="space-y-1">
+                    <label className="block font-medium text-slate-800">
+                      Username * <span className="text-slate-400 font-normal">(4–30 chars, a–z 0–9 . _)</span>
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="e.g. tariq.mehmood"
+                        value={credForm.username}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
+                        className={`w-full pl-9 pr-8 py-2 bg-slate-50 border rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 ${
+                          usernameStatus === 'taken' ? 'border-red-400 focus:ring-red-500/20' :
+                          usernameStatus === 'available' ? 'border-emerald-500 focus:ring-emerald-500/20' :
+                          'border-slate-300 focus:border-emerald-600 focus:ring-emerald-500/20'
+                        }`}
+                      />
+                      {/* Status indicator */}
+                      <div className="absolute right-2.5 top-2.5">
+                        {usernameStatus === 'checking' && <RefreshCw className="w-3.5 h-3.5 text-slate-400 animate-spin" />}
+                        {usernameStatus === 'available' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                        {usernameStatus === 'taken' && <X className="w-3.5 h-3.5 text-red-500" />}
+                      </div>
+                    </div>
+                    {usernameStatus === 'taken' && (
+                      <p className="text-red-600 text-2xs font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Username already taken
+                      </p>
+                    )}
+                    {usernameStatus === 'available' && (
+                      <p className="text-emerald-700 text-2xs font-semibold flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Username available
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Owner Email (optional for recovery) */}
+                  <div className="space-y-1">
+                    <label className="block font-medium text-slate-800">
+                      Owner Email <span className="text-slate-400 font-normal">(optional — for recovery)</span>
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="email"
+                        placeholder="owner@shop.pk (optional)"
+                        value={credForm.email}
+                        onChange={(e) => setCredForm(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                    <p className="text-2xs text-slate-400 font-normal">Login works with username OR email if provided</p>
+                  </div>
+
+                </div>
+
+                {/* Password row with generator */}
+                <div className="space-y-1">
+                  <label className="block font-medium text-slate-800">Password *</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type={credForm.showPassword ? 'text' : 'password'}
+                        placeholder="Min. 8 characters"
+                        value={credForm.password}
+                        onChange={(e) => setCredForm(prev => ({ ...prev, password: e.target.value }))}
+                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCredForm(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-700"
+                      >
+                        {credForm.showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const pwd = generateStrongPassword();
+                        setCredForm(prev => ({ ...prev, password: pwd, showPassword: true }));
+                      }}
+                      className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-semibold text-2xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Generate
+                    </button>
+                  </div>
+                  {/* Strength meter */}
+                  {credForm.password && (() => {
+                    const s = getPasswordStrength(credForm.password);
+                    return (
+                      <div className="flex items-center gap-2 pt-1">
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(i => (
+                            <div key={i} className={`h-1 w-6 rounded-full transition-all ${ i <= s.bars ? s.color : 'bg-slate-200' }`} />
+                          ))}
+                        </div>
+                        <span className={`text-2xs font-semibold ${ s.bars <= 1 ? 'text-red-600' : s.bars <= 2 ? 'text-amber-600' : s.bars <= 3 ? 'text-yellow-600' : 'text-emerald-600' }`}>
+                          {s.label}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Force password change checkbox */}
+                <label className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={credForm.force_password_change}
+                    onChange={(e) => setCredForm(prev => ({ ...prev, force_password_change: e.target.checked }))}
+                    className="mt-0.5 w-4 h-4 accent-amber-500 cursor-pointer"
+                  />
+                  <div>
+                    <div className="font-semibold text-amber-900 text-xs">Force password change on first login</div>
+                    <div className="text-2xs text-amber-700 font-normal mt-0.5">
+                      Owner must set their own password when they first sign in. Recommended ON.
+                    </div>
+                  </div>
+                </label>
+
+              </div>
+
               {/* Modal Footer / Buttons */}
               <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3 shrink-0">
                 <button
@@ -900,6 +1129,121 @@ export default function SuperAdminTenantsPage() {
           </div>
         </div>
       )}
+
+      {/* ── ONE-TIME CREDENTIALS REVEAL CARD ─────────────────────────────── */}
+      {credsCard?.open && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
+
+            {/* Header */}
+            <div className="bg-slate-950 text-white p-5 px-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center shrink-0">
+                <KeyRound className="w-5 h-5 text-slate-950" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">Owner Login Credentials — Show Once</h3>
+                <p className="text-2xs text-amber-300 font-medium mt-0.5">⚠️ Copy or share now — this screen will not be shown again</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5">
+
+              {/* Shop name banner */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2.5">
+                <Store className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div>
+                  <div className="text-2xs font-medium text-emerald-700 uppercase tracking-wider">New Shop Created</div>
+                  <div className="font-semibold text-emerald-950 text-sm">{credsCard.businessName}</div>
+                </div>
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 ml-auto shrink-0" />
+              </div>
+
+              {/* Credential rows */}
+              <div className="space-y-3">
+
+                {/* Username */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div>
+                    <div className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Username</div>
+                    <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">{credsCard.username}</div>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(credsCard.username, 'Username')}
+                    className="p-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                    title="Copy username"
+                  >
+                    <Copy className="w-4 h-4 text-slate-600" />
+                  </button>
+                </div>
+
+                {/* Password */}
+                <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div>
+                    <div className="text-2xs font-medium uppercase text-amber-700 tracking-wider">Password (Temporary)</div>
+                    <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">{credsCard.password}</div>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(credsCard.password, 'Password')}
+                    className="p-2 bg-white hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer"
+                    title="Copy password"
+                  >
+                    <Copy className="w-4 h-4 text-amber-700" />
+                  </button>
+                </div>
+
+                {/* Email (if set) */}
+                {credsCard.email && (
+                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div>
+                      <div className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Login Email (optional)</div>
+                      <div className="font-mono font-semibold text-slate-900 text-sm mt-0.5">{credsCard.email}</div>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(credsCard.email, 'Email')}
+                      className="p-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-4 h-4 text-slate-600" />
+                    </button>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Force change note */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                <span>The owner will be prompted to change their password on first login. Share these credentials securely.</span>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => shareViaWhatsApp(credsCard)}
+                className="flex-1 py-2.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Share via WhatsApp
+              </button>
+              <button
+                onClick={() => {
+                  setCredsCard(null);
+                  showToast(`Tenant '${credsCard.businessName}' created. Credentials saved.`, 'success');
+                  router.push(`/admin/tenants/${credsCard.tenantId}`);
+                }}
+                className="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                I've saved these credentials →
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </AdminShell>
   );
 }

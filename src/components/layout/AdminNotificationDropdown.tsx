@@ -114,7 +114,7 @@ export default function AdminNotificationDropdown() {
                   )}
                 </h3>
                 <p className="text-[10px] text-slate-400 font-normal">
-                  Tenant subscription dues, renewals &amp; maintenance fees
+                  Tenant recurring billing dues &amp; upcoming charges
                 </p>
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function AdminNotificationDropdown() {
                 </div>
                 <div className="text-xs font-semibold text-slate-900">All Clear!</div>
                 <p className="text-2xs text-slate-500 max-w-xs mx-auto">
-                  No upcoming subscription renewals or overdue maintenance fees requiring attention.
+                  No upcoming recurring billing dues or overdue charges requiring attention.
                 </p>
               </div>
             ) : (

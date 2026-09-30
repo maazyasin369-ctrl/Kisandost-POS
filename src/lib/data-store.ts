@@ -41,8 +41,8 @@ import {
   TenantBillingTerms,
   TenantPaymentRecord,
   AdminNotification,
-  BillingCycle,
-  FeeCycle
+  CredentialAuditEntry,
+  PendingRegistration,
 } from './types';
 
 class DataStore {
@@ -65,6 +65,8 @@ class DataStore {
   private billingTerms: TenantBillingTerms[] = [...initialBillingTerms];
   private tenantPayments: TenantPaymentRecord[] = [...initialTenantPayments];
   private manualDismissedNotifications: string[] = [];
+  private credentialAuditLog: CredentialAuditEntry[] = [];
+  private pendingRegistrations: PendingRegistration[] = [];
 
   private isLoaded = false;
 
@@ -125,6 +127,12 @@ class DataStore {
 
         const storedDismissed = localStorage.getItem('pesticide_dismissed_notifications');
         if (storedDismissed) this.manualDismissedNotifications = JSON.parse(storedDismissed);
+
+        const storedCredAudit = localStorage.getItem('pesticide_credential_audit');
+        if (storedCredAudit) this.credentialAuditLog = JSON.parse(storedCredAudit);
+
+        const storedPendingRegs = localStorage.getItem('pesticide_pending_registrations');
+        if (storedPendingRegs) this.pendingRegistrations = JSON.parse(storedPendingRegs);
 
         this.recalculateLedgerBalances();
       } catch (e) {
@@ -211,7 +219,11 @@ class DataStore {
     subscription_status: SubscriptionStatus;
     branch_setup: 'single' | 'multiple';
     branches: { name: string; address: string; phone?: string }[];
-  }): { success: boolean; error?: string; tenant?: Tenant; tempPassword?: string } {
+    // Credential fields
+    username?: string;
+    password?: string;
+    force_password_change?: boolean;
+  }): { success: boolean; error?: string; tenant?: Tenant; tempPassword?: string; credentials?: { username: string; password: string; email: string } } {
     this.ensureClientLoaded();
 
     const licInput = payload.dealer_license_number.trim().toLowerCase();
@@ -223,6 +235,20 @@ class DataStore {
         success: false,
         error: `Dealer License Number '${payload.dealer_license_number}' is already registered by another shop tenant.`
       };
+    }
+
+    // Username uniqueness check (case-insensitive, platform-wide)
+    if (payload.username) {
+      const uInput = payload.username.trim().toLowerCase();
+      const isDuplicateUser = this.profiles.some(
+        p => p.username?.trim().toLowerCase() === uInput
+      );
+      if (isDuplicateUser) {
+        return {
+          success: false,
+          error: `Username '${payload.username}' is already taken. Please choose a different username.`
+        };
+      }
     }
 
     if (!payload.branches || payload.branches.length === 0) {
@@ -275,7 +301,10 @@ class DataStore {
       created_at: new Date().toISOString(),
     }));
 
-    const tempPassword = `KisanDost@${Math.floor(1000 + Math.random() * 9000)}`;
+    const autoPassword = payload.password?.trim() || `KisanDost@${Math.floor(1000 + Math.random() * 9000)}`;
+    const autoUsername = payload.username?.trim() || `shop_${tenantId.replace('tenant-', '')}`;
+    const ownerEmail = payload.owner_email?.trim() || '';
+
     const newProfile: Profile = {
       id: `prof-${Date.now()}`,
       tenant_id: tenantId,
@@ -285,7 +314,23 @@ class DataStore {
       branch_id: createdBranches[0]?.id,
       is_active: true,
       created_at: new Date().toISOString(),
+      // Credentials
+      username: autoUsername,
+      email: ownerEmail,
+      force_password_change: payload.force_password_change !== false, // default true
     };
+
+    // Write a CREATED audit entry
+    const auditEntry: CredentialAuditEntry = {
+      id: `cred-audit-${Date.now()}`,
+      profile_id: newProfile.id,
+      tenant_id: tenantId,
+      action: 'CREATED',
+      performed_by: 'super_admin',
+      note: `Owner account created. Username: ${autoUsername}`,
+      created_at: new Date().toISOString(),
+    };
+    this.credentialAuditLog.unshift(auditEntry);
 
     this.tenants.unshift(newTenant);
     this.branches.push(...createdBranches);
@@ -294,11 +339,17 @@ class DataStore {
     this.save('pesticide_tenants', this.tenants);
     this.save('pesticide_branches', this.branches);
     this.save('pesticide_profiles', this.profiles);
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
 
     return {
       success: true,
       tenant: newTenant,
-      tempPassword,
+      tempPassword: autoPassword,
+      credentials: {
+        username: autoUsername,
+        password: autoPassword,
+        email: ownerEmail,
+      },
     };
   }
   updateTenantStatus(tenantIdOrStatus: string, statusArg?: SubscriptionStatus) {
@@ -397,7 +448,382 @@ class DataStore {
     this.save('pesticide_profiles', this.profiles);
     return profile;
   }
+
+  // ── Credential Management ──────────────────────────────────────────────────
+
+  /** Check whether a username is already taken platform-wide */
+  checkUsernameAvailable(username: string, excludeProfileId?: string): boolean {
+    this.ensureClientLoaded();
+    const u = username.trim().toLowerCase();
+    return !this.profiles.some(
+      p => p.username?.trim().toLowerCase() === u && p.id !== excludeProfileId
+    );
+  }
+
+  /** Change the username on a profile (super-admin only) */
+  updateProfileUsername(profileId: string, newUsername: string, performedBy: string = 'Super Admin'): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const profile = this.profiles.find(p => p.id === profileId);
+    if (!profile) return { success: false, error: 'Profile not found.' };
+    const u = newUsername.trim().toLowerCase();
+    if (!/^[a-z0-9._]{4,30}$/.test(u)) {
+      return { success: false, error: 'Username must be 4–30 chars, lowercase letters/numbers/dot/underscore only.' };
+    }
+    if (!this.checkUsernameAvailable(newUsername, profileId)) {
+      return { success: false, error: `Username '${newUsername}' is already taken.` };
+    }
+    const oldUsername = profile.username;
+    profile.username = u;
+    this.save('pesticide_profiles', this.profiles);
+    this.credentialAuditLog.unshift({
+      id: `cred-audit-${Date.now()}`,
+      profile_id: profileId,
+      tenant_id: profile.tenant_id,
+      action: 'CHANGE_USERNAME',
+      performed_by: performedBy,
+      note: `Username changed from '${oldUsername || 'none'}' → '${u}'`,
+      created_at: new Date().toISOString(),
+    });
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
+    return { success: true };
+  }
+
+  /**
+   * Reset a profile's password (super-admin only).
+   * NOTE: In production this calls supabaseAdmin.auth.admin.updateUserById().
+   * Here we record the reset in the audit log and flag force_password_change.
+   */
+  resetProfilePassword(
+    profileId: string,
+    newPassword: string,
+    forcePasswordChange: boolean = true,
+    performedBy: string = 'Super Admin'
+  ): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const profile = this.profiles.find(p => p.id === profileId);
+    if (!profile) return { success: false, error: 'Profile not found.' };
+    if (newPassword.length < 8) return { success: false, error: 'Password must be at least 8 characters.' };
+    // NEVER store plaintext password. Production: call Supabase Admin API.
+    profile.force_password_change = forcePasswordChange;
+    this.save('pesticide_profiles', this.profiles);
+    this.credentialAuditLog.unshift({
+      id: `cred-audit-${Date.now()}`,
+      profile_id: profileId,
+      tenant_id: profile.tenant_id,
+      action: 'RESET_PASSWORD',
+      performed_by: performedBy,
+      note: `Password reset by ${performedBy}.${forcePasswordChange ? ' Owner must change password on next login.' : ''}`,
+      created_at: new Date().toISOString(),
+    });
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
+    return { success: true };
+  }
+
+  /** Disable (lock) a profile account */
+  disableProfile(profileId: string, reason?: string, performedBy: string = 'Super Admin'): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const profile = this.profiles.find(p => p.id === profileId);
+    if (!profile) return { success: false, error: 'Profile not found.' };
+    profile.is_active = false;
+    profile.account_disabled_at = new Date().toISOString();
+    this.save('pesticide_profiles', this.profiles);
+    this.credentialAuditLog.unshift({
+      id: `cred-audit-${Date.now()}`,
+      profile_id: profileId,
+      tenant_id: profile.tenant_id,
+      action: 'DISABLE_ACCOUNT',
+      performed_by: performedBy,
+      note: reason || `Account disabled by ${performedBy}.`,
+      created_at: new Date().toISOString(),
+    });
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
+    return { success: true };
+  }
+
+  /** Re-enable a previously disabled profile */
+  enableProfile(profileId: string, performedBy: string = 'Super Admin'): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const profile = this.profiles.find(p => p.id === profileId);
+    if (!profile) return { success: false, error: 'Profile not found.' };
+    profile.is_active = true;
+    profile.account_disabled_at = null;
+    this.save('pesticide_profiles', this.profiles);
+    this.credentialAuditLog.unshift({
+      id: `cred-audit-${Date.now()}`,
+      profile_id: profileId,
+      tenant_id: profile.tenant_id,
+      action: 'ENABLE_ACCOUNT',
+      performed_by: performedBy,
+      note: `Account re-enabled by ${performedBy}.`,
+      created_at: new Date().toISOString(),
+    });
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
+    return { success: true };
+  }
+
+  /** Invalidate all active sessions (in prod: supabase.auth.admin.signOut) */
+  signOutAllSessions(profileId: string, performedBy: string = 'Super Admin'): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const profile = this.profiles.find(p => p.id === profileId);
+    if (!profile) return { success: false, error: 'Profile not found.' };
+    profile.sessions_invalidated_at = new Date().toISOString();
+    this.save('pesticide_profiles', this.profiles);
+    this.credentialAuditLog.unshift({
+      id: `cred-audit-${Date.now()}`,
+      profile_id: profileId,
+      tenant_id: profile.tenant_id,
+      action: 'SIGN_OUT_ALL',
+      performed_by: performedBy,
+      note: `All active sessions signed out by ${performedBy}.`,
+      created_at: new Date().toISOString(),
+    });
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
+    return { success: true };
+  }
+
+  /** Get credential audit entries for a profile (or all if profileId omitted) */
+  getCredentialAuditLog(profileId?: string): CredentialAuditEntry[] {
+    this.ensureClientLoaded();
+    if (profileId) return this.credentialAuditLog.filter(e => e.profile_id === profileId);
+    return this.credentialAuditLog;
+  }
+
+  /** Get the owner profile for a given tenant */
+  getOwnerProfile(tenantId: string): Profile | undefined {
+    this.ensureClientLoaded();
+    return this.profiles.find(p => p.tenant_id === tenantId && p.role === 'owner');
+  }
+
+  /**
+   * Self-Registration by a new shop owner via /signup.
+   * Sets tenant subscription_status to 'pending_approval' and owner profile is_active to false.
+   * Creates a pending registration entry for Super Admin approval.
+   */
+  submitSelfSignup(payload: {
+    full_name: string;
+    business_name: string;
+    phone: string;
+    email?: string;
+    city: string;
+    username: string;
+    password?: string;
+  }): { success: boolean; error?: string; pendingRegistration?: PendingRegistration } {
+    this.ensureClientLoaded();
+
+    const username = payload.username.trim().toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9._]{4,30}$/.test(username)) {
+      return { success: false, error: 'Username must be 4–30 chars (lowercase letters, numbers, dot, underscore).' };
+    }
+
+    if (!this.checkUsernameAvailable(username)) {
+      return { success: false, error: `Username '@${username}' is already registered across the platform.` };
+    }
+
+    const tenantId = `tenant-${Date.now()}`;
+    const profileId = `prof-${Date.now()}`;
+    const branchId = `br-${Date.now()}`;
+    const pendingId = `pend-reg-${Date.now()}`;
+    const createdAt = new Date().toISOString();
+
+    const newTenant: Tenant = {
+      id: tenantId,
+      business_name: payload.business_name.trim(),
+      owner_name: payload.full_name.trim(),
+      phone: payload.phone.trim(),
+      city: payload.city.trim(),
+      dealer_license_number: 'PENDING-LICENSE',
+      license_expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      subscription_status: 'pending_approval',
+      settings: { branch_mode: 'independent' },
+      created_at: createdAt,
+    };
+
+    const newProfile: Profile = {
+      id: profileId,
+      tenant_id: tenantId,
+      full_name: payload.full_name.trim(),
+      phone: payload.phone.trim(),
+      role: 'owner',
+      is_active: false,
+      username,
+      email: payload.email?.trim() || undefined,
+      force_password_change: false,
+      created_at: createdAt,
+    };
+
+    const newBranch: Branch = {
+      id: branchId,
+      tenant_id: tenantId,
+      name: `${payload.business_name.trim()} - Main Outlet`,
+      address: payload.city.trim(),
+      phone: payload.phone.trim(),
+      is_active: true,
+      created_at: createdAt,
+    };
+
+    const pendingRegistration: PendingRegistration = {
+      id: pendingId,
+      tenant_id: tenantId,
+      profile_id: profileId,
+      full_name: payload.full_name.trim(),
+      business_name: payload.business_name.trim(),
+      phone: payload.phone.trim(),
+      email: payload.email?.trim(),
+      city: payload.city.trim(),
+      username,
+      status: 'pending',
+      created_at: createdAt,
+    };
+
+    this.tenants.unshift(newTenant);
+    this.profiles.push(newProfile);
+    this.branches.push(newBranch);
+    this.pendingRegistrations.unshift(pendingRegistration);
+
+    this.save('pesticide_tenants', this.tenants);
+    this.save('pesticide_profiles', this.profiles);
+    this.save('pesticide_branches', this.branches);
+    this.save('pesticide_pending_registrations', this.pendingRegistrations);
+
+    return { success: true, pendingRegistration };
+  }
+
+  /**
+   * Authenticate a user by Username, Email, or Phone.
+   * Validates account activation & tenant approval status.
+   */
+  authenticateUser(emailOrUsername: string, passwordInput?: string): {
+    success: boolean;
+    error?: string;
+    isPendingApproval?: boolean;
+    profile?: Profile;
+    tenant?: Tenant;
+  } {
+    this.ensureClientLoaded();
+    const query = emailOrUsername.trim().toLowerCase().replace(/^@/, '');
+    if (!query) return { success: false, error: 'Please enter your email address or username.' };
+
+    const profile = this.profiles.find(p => {
+      const u = p.username?.trim().toLowerCase().replace(/^@/, '');
+      const e = p.email?.trim().toLowerCase();
+      const ph = p.phone?.trim();
+      const fn = p.full_name?.trim().toLowerCase();
+      return u === query || e === query || ph === query || fn === query;
+    });
+
+    if (!profile) {
+      return { success: false, error: 'No account found with this username/email. Please check your login details.' };
+    }
+
+    const tenant = this.tenants.find(t => t.id === profile.tenant_id);
+
+    if (tenant?.subscription_status === 'pending_approval') {
+      return {
+        success: false,
+        isPendingApproval: true,
+        error: `Your shop registration for "${tenant.business_name}" is pending Super Admin approval. You will be able to log in once Super Admin approves your account.`,
+      };
+    }
+
+    if (tenant?.subscription_status === 'rejected') {
+      return {
+        success: false,
+        error: `Your shop registration request for "${tenant.business_name}" was rejected by Super Admin.`,
+      };
+    }
+
+    if (tenant?.subscription_status === 'suspended') {
+      return {
+        success: false,
+        error: `Your shop account subscription is currently suspended. Please contact Super Admin.`,
+      };
+    }
+
+    if (profile.account_disabled_at || !profile.is_active) {
+      return {
+        success: false,
+        error: 'Your shop owner login has been disabled by Super Admin.',
+      };
+    }
+
+    return {
+      success: true,
+      profile,
+      tenant,
+    };
+  }
+
+  /** Get all pending self-registrations for Super Admin queue */
+  getPendingRegistrations(): PendingRegistration[] {
+    this.ensureClientLoaded();
+    return this.pendingRegistrations;
+  }
+
+  /** Approve a pending self-registration */
+  approveRegistration(registrationId: string, performedBy: string = 'Super Admin'): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const reg = this.pendingRegistrations.find(r => r.id === registrationId);
+    if (!reg) return { success: false, error: 'Pending registration not found.' };
+
+    reg.status = 'approved';
+    reg.reviewed_at = new Date().toISOString();
+
+    const tenant = this.tenants.find(t => t.id === reg.tenant_id);
+    if (tenant) {
+      tenant.subscription_status = 'trial';
+    }
+
+    const profile = this.profiles.find(p => p.id === reg.profile_id);
+    if (profile) {
+      profile.is_active = true;
+      this.credentialAuditLog.unshift({
+        id: `cred-audit-${Date.now()}`,
+        profile_id: profile.id,
+        tenant_id: profile.tenant_id,
+        action: 'ENABLE_ACCOUNT',
+        performed_by: performedBy,
+        note: `Self-registration approved by ${performedBy}. Account activated.`,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    this.save('pesticide_pending_registrations', this.pendingRegistrations);
+    this.save('pesticide_tenants', this.tenants);
+    this.save('pesticide_profiles', this.profiles);
+    this.save('pesticide_credential_audit', this.credentialAuditLog);
+
+    return { success: true };
+  }
+
+  /** Reject a pending self-registration */
+  rejectRegistration(registrationId: string, note?: string, performedBy: string = 'Super Admin'): { success: boolean; error?: string } {
+    this.ensureClientLoaded();
+    const reg = this.pendingRegistrations.find(r => r.id === registrationId);
+    if (!reg) return { success: false, error: 'Pending registration not found.' };
+
+    reg.status = 'rejected';
+    reg.review_note = note || 'Registration rejected by Super Admin';
+    reg.reviewed_at = new Date().toISOString();
+
+    const tenant = this.tenants.find(t => t.id === reg.tenant_id);
+    if (tenant) {
+      tenant.subscription_status = 'rejected';
+    }
+
+    const profile = this.profiles.find(p => p.id === reg.profile_id);
+    if (profile) {
+      profile.is_active = false;
+    }
+
+    this.save('pesticide_pending_registrations', this.pendingRegistrations);
+    this.save('pesticide_tenants', this.tenants);
+    this.save('pesticide_profiles', this.profiles);
+
+    return { success: true };
+  }
+
   getCompanies() {
+
     this.ensureClientLoaded();
     return this.companies;
   }
@@ -1432,16 +1858,17 @@ class DataStore {
     if (!terms) {
       const tenantObj = this.tenants.find(t => t.id === tenantId);
       const bizName = tenantObj ? tenantObj.business_name : 'Shop Tenant';
+      // Default: Rs. 5,000/month, no installation
+      const nextDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       terms = {
         id: `term-${Date.now()}`,
         tenant_id: tenantId,
-        subscription_plan: 'Standard Monthly SaaS License',
-        billing_cycle: 'monthly',
-        fee_amount: 5000,
-        next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        maintenance_fee_amount: 2500,
-        maintenance_fee_cycle: '6_monthly',
-        next_maintenance_due_date: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        installation_charges: 0,
+        installation_date: null,
+        recurring_amount: 5000,
+        recurring_interval_months: 1,
+        first_recurring_date: nextDue,
+        next_due_date: nextDue,
         currency: 'Rs.',
         notes: `Default terms for ${bizName}`,
         updated_at: new Date().toISOString()
@@ -1462,16 +1889,16 @@ class DataStore {
         updated_at: new Date().toISOString()
       };
     } else {
+      const nextDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const newTerm: TenantBillingTerms = {
         id: `term-${Date.now()}`,
         tenant_id: tenantId,
-        subscription_plan: updates.subscription_plan || 'Standard Monthly SaaS License',
-        billing_cycle: updates.billing_cycle || 'monthly',
-        fee_amount: updates.fee_amount ?? 5000,
-        next_billing_date: updates.next_billing_date || new Date().toISOString().split('T')[0],
-        maintenance_fee_amount: updates.maintenance_fee_amount ?? 2500,
-        maintenance_fee_cycle: updates.maintenance_fee_cycle || '6_monthly',
-        next_maintenance_due_date: updates.next_maintenance_due_date || new Date().toISOString().split('T')[0],
+        installation_charges: updates.installation_charges ?? 0,
+        installation_date: updates.installation_date ?? null,
+        recurring_amount: updates.recurring_amount ?? 5000,
+        recurring_interval_months: updates.recurring_interval_months ?? 1,
+        first_recurring_date: updates.first_recurring_date ?? nextDue,
+        next_due_date: updates.next_due_date ?? nextDue,
         currency: updates.currency || 'Rs.',
         notes: updates.notes,
         updated_at: new Date().toISOString()
@@ -1499,36 +1926,27 @@ class DataStore {
     this.tenantPayments.unshift(newRecord);
     this.save('pesticide_tenant_payments', this.tenantPayments);
 
-    // Auto-advance next due dates when payment is recorded & auto-clear resolved notifications
-    const terms = this.getBillingTerms(payment.tenant_id);
-    if (terms) {
-      if (payment.payment_type === 'subscription') {
-        const currentDue = new Date(terms.next_billing_date);
-        if (terms.billing_cycle === 'monthly') {
-          currentDue.setMonth(currentDue.getMonth() + 1);
-        } else {
-          currentDue.setFullYear(currentDue.getFullYear() + 1);
-        }
+    // Auto-advance next_due_date when a recurring payment is logged
+    if (payment.payment_type === 'recurring') {
+      const terms = this.getBillingTerms(payment.tenant_id);
+      if (terms && terms.next_due_date && terms.recurring_interval_months) {
+        const currentDue = new Date(terms.next_due_date);
+        currentDue.setMonth(currentDue.getMonth() + terms.recurring_interval_months);
         this.updateBillingTerms(payment.tenant_id, {
-          next_billing_date: currentDue.toISOString().split('T')[0]
-        });
-      } else if (payment.payment_type === 'maintenance') {
-        const currentMaint = new Date(terms.next_maintenance_due_date);
-        if (terms.maintenance_fee_cycle === '6_monthly') {
-          currentMaint.setMonth(currentMaint.getMonth() + 6);
-        } else {
-          currentMaint.setFullYear(currentMaint.getFullYear() + 1);
-        }
-        this.updateBillingTerms(payment.tenant_id, {
-          next_maintenance_due_date: currentMaint.toISOString().split('T')[0]
+          next_due_date: currentDue.toISOString().split('T')[0]
         });
       }
     }
+    // Installation payments never advance any due date
 
     return newRecord;
   }
 
   // --- REAL-TIME BILLING NOTIFICATIONS EVALUATION ---
+  // Notification thresholds (days before due):
+  //   1-month interval  → 3 days
+  //   3–6-month interval → 7 days
+  //   12-month interval  → 14 days
 
   getAdminNotifications(): AdminNotification[] {
     this.ensureClientLoaded();
@@ -1538,107 +1956,70 @@ class DataStore {
 
     this.tenants.forEach((t) => {
       const terms = this.getBillingTerms(t.id);
-      if (!terms) return;
+      if (!terms || !terms.next_due_date || !terms.recurring_interval_months) return;
 
-      // 1. Subscription Billing Due / Overdue
-      if (terms.next_billing_date) {
-        const dueDate = new Date(terms.next_billing_date);
-        const diffMs = dueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const dueDate = new Date(terms.next_due_date);
+      const diffMs = dueDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-        const notifyThreshold = terms.billing_cycle === 'yearly' ? 14 : 3;
-
-        if (diffDays <= notifyThreshold) {
-          let severity: 'overdue' | 'warning' = 'warning';
-          let type: AdminNotification['type'] = 'billing_due';
-          let title = '';
-          let message = '';
-
-          if (diffDays < 0) {
-            severity = 'overdue';
-            type = 'billing_overdue';
-            title = `OVERDUE: ${terms.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`;
-            message = `${t.business_name} — ${terms.subscription_plan} (Rs. ${terms.fee_amount.toLocaleString()}) was due on ${terms.next_billing_date} (${Math.abs(diffDays)} day(s) OVERDUE).`;
-          } else if (diffDays === 0) {
-            severity = 'warning';
-            type = 'billing_due';
-            title = `DUE TODAY: ${terms.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`;
-            message = `${t.business_name} — ${terms.subscription_plan} (Rs. ${terms.fee_amount.toLocaleString()}) is due today (${terms.next_billing_date}).`;
-          } else {
-            severity = 'warning';
-            type = 'billing_due';
-            title = `Due Soon: ${terms.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`;
-            message = `${t.business_name} — ${terms.subscription_plan} (Rs. ${terms.fee_amount.toLocaleString()}) is due in ${diffDays} day(s) (${terms.next_billing_date}).`;
-          }
-
-          const notifId = `notif-sub-${t.id}-${terms.next_billing_date}`;
-          if (!this.manualDismissedNotifications.includes(notifId)) {
-            notifications.push({
-              id: notifId,
-              tenant_id: t.id,
-              tenant_name: t.business_name,
-              type,
-              title,
-              message,
-              amount: terms.fee_amount,
-              due_date: terms.next_billing_date,
-              link_url: `/admin/tenants/${t.id}?tab=billing`,
-              is_read: false,
-              is_resolved: false,
-              severity,
-              created_at: new Date().toISOString()
-            });
-          }
-        }
+      // Determine notification threshold based on interval
+      const interval = terms.recurring_interval_months;
+      let notifyThreshold: number;
+      if (interval <= 1) {
+        notifyThreshold = 3;
+      } else if (interval <= 6) {
+        notifyThreshold = 7;
+      } else {
+        notifyThreshold = 14;
       }
 
-      // 2. Maintenance Fee Due / Overdue
-      if (terms.next_maintenance_due_date) {
-        const maintDate = new Date(terms.next_maintenance_due_date);
-        const diffMs = maintDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const intervalLabel = interval === 1 ? 'Monthly' :
+        interval === 3 ? 'Quarterly' :
+        interval === 4 ? 'Every 4 Months' :
+        interval === 6 ? 'Semi-Annual' :
+        interval === 12 ? 'Annual' :
+        `Every ${interval} Months`;
 
-        if (diffDays <= 7) {
-          let severity: 'overdue' | 'warning' = 'warning';
-          let type: AdminNotification['type'] = 'maintenance_due';
-          let title = '';
-          let message = '';
+      if (diffDays <= notifyThreshold) {
+        let severity: 'overdue' | 'warning' = 'warning';
+        let type: AdminNotification['type'] = 'billing_due';
+        let title = '';
+        let message = '';
 
-          if (diffDays < 0) {
-            severity = 'overdue';
-            type = 'maintenance_overdue';
-            title = `OVERDUE: Maintenance Fee`;
-            message = `${t.business_name} — Maintenance fee (Rs. ${terms.maintenance_fee_amount.toLocaleString()}) was due on ${terms.next_maintenance_due_date} (${Math.abs(diffDays)} day(s) OVERDUE).`;
-          } else if (diffDays === 0) {
-            severity = 'warning';
-            type = 'maintenance_due';
-            title = `DUE TODAY: Maintenance Fee`;
-            message = `${t.business_name} — Maintenance fee (Rs. ${terms.maintenance_fee_amount.toLocaleString()}) is due today (${terms.next_maintenance_due_date}).`;
-          } else {
-            severity = 'warning';
-            type = 'maintenance_due';
-            title = `Due Soon: Maintenance Fee`;
-            message = `${t.business_name} — Maintenance fee (Rs. ${terms.maintenance_fee_amount.toLocaleString()}) is due in ${diffDays} day(s) (${terms.next_maintenance_due_date}).`;
-          }
+        if (diffDays < 0) {
+          severity = 'overdue';
+          type = 'billing_overdue';
+          title = `OVERDUE: ${intervalLabel} Recurring Charge`;
+          message = `${t.business_name} — Rs. ${terms.recurring_amount.toLocaleString()} recurring charge was due on ${terms.next_due_date} (${Math.abs(diffDays)} day(s) OVERDUE).`;
+        } else if (diffDays === 0) {
+          severity = 'warning';
+          type = 'billing_due';
+          title = `DUE TODAY: ${intervalLabel} Recurring Charge`;
+          message = `${t.business_name} — Rs. ${terms.recurring_amount.toLocaleString()} recurring charge is due today (${terms.next_due_date}).`;
+        } else {
+          severity = 'warning';
+          type = 'billing_due';
+          title = `Due Soon: ${intervalLabel} Recurring Charge`;
+          message = `${t.business_name} — Rs. ${terms.recurring_amount.toLocaleString()} recurring charge is due in ${diffDays} day(s) on ${terms.next_due_date}.`;
+        }
 
-          const notifId = `notif-maint-${t.id}-${terms.next_maintenance_due_date}`;
-          if (!this.manualDismissedNotifications.includes(notifId)) {
-            notifications.push({
-              id: notifId,
-              tenant_id: t.id,
-              tenant_name: t.business_name,
-              type,
-              title,
-              message,
-              amount: terms.maintenance_fee_amount,
-              due_date: terms.next_maintenance_due_date,
-              link_url: `/admin/tenants/${t.id}?tab=billing`,
-              is_read: false,
-              is_resolved: false,
-              severity,
-              created_at: new Date().toISOString()
-            });
-          }
+        const notifId = `notif-rec-${t.id}-${terms.next_due_date}`;
+        if (!this.manualDismissedNotifications.includes(notifId)) {
+          notifications.push({
+            id: notifId,
+            tenant_id: t.id,
+            tenant_name: t.business_name,
+            type,
+            title,
+            message,
+            amount: terms.recurring_amount,
+            due_date: terms.next_due_date,
+            link_url: `/admin/tenants/${t.id}?tab=billing`,
+            is_read: false,
+            is_resolved: false,
+            severity,
+            created_at: new Date().toISOString()
+          });
         }
       }
     });

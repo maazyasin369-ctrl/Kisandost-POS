@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { BookOpen, Banknote, CheckCircle2, History } from 'lucide-react'
+import { BookOpen, Banknote, CheckCircle2, History, Printer, X } from 'lucide-react'
 import { closeDayAction, getDayClosings } from '@/actions/reports'
 import { useToast } from '@/components/ui/Toast'
+import PrintableReceipt, { DayClosingPrintData } from '@/components/PrintableReceipt'
+import { usePrintReceipt } from '@/lib/use-print-receipt'
 
 type DayClosingData = Awaited<ReturnType<typeof getDayClosings>>;
 
@@ -18,6 +20,10 @@ export default function DayClosingPage() {
   const [actualCash, setActualCash] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Selected closing print modal state
+  const [selectedClosingPrint, setSelectedClosingPrint] = useState<DayClosingPrintData | null>(null)
+  const { triggerPrint } = usePrintReceipt()
 
   const loadData = async () => {
     setLoading(true)
@@ -51,6 +57,21 @@ export default function DayClosingPage() {
     if (res.success) {
       showToast('Day closing saved successfully!', 'success')
       setIsWizardOpen(false)
+
+      // Open print modal for the newly saved closing
+      const actualNum = parseFloat(actualCash) || 0;
+      setSelectedClosingPrint({
+        closing_date: todayStr,
+        recorded_at: new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' }),
+        recorded_by: 'Owner / Manager',
+        total_cash_sales: 18500, // Aggregate mock value
+        total_farmer_collections: 4500,
+        expected_cash: (parseFloat(openingCash) || 0) + 18500 + 4500,
+        actual_cash: actualNum,
+        variance: actualNum - ((parseFloat(openingCash) || 0) + 18500 + 4500),
+        notes,
+      })
+
       setActualCash('')
       setNotes('')
       loadData()
@@ -65,7 +86,7 @@ export default function DayClosingPage() {
       <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center space-x-2.5 tracking-tight">
-            <div className="p-2 bg-slate-950 text-yellow-400 rounded-xl">
+            <div className="p-2 bg-slate-950 text-amber-400 rounded-xl">
               <BookOpen className="h-5 w-5" strokeWidth={2.2} />
             </div>
             <span>End-of-Day Cash Drawer Reconciliation</span>
@@ -77,7 +98,7 @@ export default function DayClosingPage() {
 
         <button
           onClick={() => setIsWizardOpen(true)}
-          className="bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
         >
           <Banknote className="h-4 w-4 stroke-[2.5]" />
           <span>CLOSE TODAY&apos;S CASH DRAWER</span>
@@ -189,6 +210,7 @@ export default function DayClosingPage() {
                   <th className="p-3 text-right">Expected Cash</th>
                   <th className="p-3 text-right">Actual Cash</th>
                   <th className="p-3 text-right">Difference</th>
+                  <th className="p-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-900">
@@ -211,6 +233,27 @@ export default function DayClosingPage() {
                           {c.difference >= 0 ? `+Rs. ${c.difference.toLocaleString()}` : `-Rs. ${Math.abs(c.difference).toLocaleString()}`}
                         </span>
                       </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => {
+                            setSelectedClosingPrint({
+                              closing_date: c.closing_date,
+                              recorded_at: '20:00',
+                              recorded_by: 'Manager',
+                              total_cash_sales: c.total_cash_sales ?? 0,
+                              total_farmer_collections: c.total_payments_received ?? 0,
+                              expected_cash: c.closing_cash_expected ?? 0,
+                              actual_cash: c.closing_cash_actual ?? 0,
+                              variance: c.difference ?? 0,
+                            })
+                          }}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer inline-flex items-center gap-1 text-2xs font-semibold"
+                          title="Print Thermal Closing Slip"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-slate-800" />
+                          <span>Slip</span>
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -219,6 +262,45 @@ export default function DayClosingPage() {
           </div>
         )}
       </div>
+
+      {/* Day Closing Thermal Print Modal */}
+      {selectedClosingPrint && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-950 text-white p-4 flex items-center justify-between no-print">
+              <div className="flex items-center space-x-2">
+                <Printer className="h-4 w-4 text-amber-400" />
+                <span className="font-bold text-xs">Day Closing Thermal Slip ({selectedClosingPrint.closing_date})</span>
+              </div>
+              <button onClick={() => setSelectedClosingPrint(null)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-100 flex justify-center max-h-[70vh] overflow-y-auto">
+              <div className="bg-white p-2 shadow-md border border-slate-300 rounded">
+                <PrintableReceipt type="day_closing" dayClosing={selectedClosingPrint} />
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between no-print">
+              <button
+                onClick={() => setSelectedClosingPrint(null)}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={triggerPrint}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Thermal Slip</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
