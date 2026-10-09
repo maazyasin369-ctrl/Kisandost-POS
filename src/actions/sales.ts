@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createDataClient } from '@/lib/supabase/admin'
 
 function isUUID(str?: string): boolean {
   if (!str) return false
@@ -11,7 +11,7 @@ function isUUID(str?: string): boolean {
 // ─── Fetch Data ─────────────────────────────────────────────────────────────
 
 export async function getBranches(tenantId: string) {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
   const { data } = await supabase
     .from('branches')
     .select('id, name, address, phone, is_active')
@@ -22,7 +22,7 @@ export async function getBranches(tenantId: string) {
 }
 
 export async function getProducts(tenantId: string) {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
   const { data } = await supabase
     .from('products')
     .select('id, name, active_ingredient, formulation_type, pack_size, pack_unit, reorder_level, company_id, companies(name)')
@@ -32,7 +32,7 @@ export async function getProducts(tenantId: string) {
 }
 
 export async function getBatchesForBranch(branchId: string) {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
   // FEFO: order by expiry_date ASC so nearest-expiry appears first
   const { data } = await supabase
     .from('batches')
@@ -44,7 +44,7 @@ export async function getBatchesForBranch(branchId: string) {
 }
 
 export async function getCustomers(tenantId: string, branchId?: string) {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
   let query = supabase
     .from('customers')
     .select('id, name, phone, address, credit_limit, is_active, land_size, crop_type')
@@ -61,7 +61,7 @@ export async function getCustomers(tenantId: string, branchId?: string) {
 }
 
 export async function getCustomerBalance(customerId: string): Promise<number> {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
   const { data } = await supabase
     .from('credit_ledger')
     .select('running_balance')
@@ -72,33 +72,64 @@ export async function getCustomerBalance(customerId: string): Promise<number> {
   return data?.running_balance ?? 0
 }
 
-export async function getSalesHistory(tenantId: string, branchId?: string, limit = 500) {
-  const supabase = createAdminClient()
+export async function getSalesHistory(tenantId?: string, branchId?: string, limit = 500) {
+  const supabase = await createDataClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  let resolvedTenant = tenantId
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (profile?.tenant_id) resolvedTenant = profile.tenant_id
+  }
+  if (!resolvedTenant) return []
+
   let query = supabase
     .from('sales')
     .select(`
-      id, branch_id, sale_number, payment_type, subtotal, discount_total, grand_total, amount_paid, status, return_reason, created_at,
-      customers(name, phone),
-      profiles(full_name),
-      branches(name)
+      id, branch_id, sale_number, payment_type, subtotal, discount_total, grand_total, amount_paid, status, created_at,
+      customers!sales_customer_id_fkey(name, phone),
+      profiles!sales_sold_by_fkey(full_name),
+      branches!sales_branch_id_fkey(name)
     `)
+    .eq('tenant_id', resolvedTenant)
     .order('created_at', { ascending: false })
     .limit(limit)
-
-  if (tenantId) {
-    query = query.eq('tenant_id', tenantId)
-  }
 
   if (branchId) {
     query = query.eq('branch_id', branchId)
   }
 
-  const { data } = await query
+  const { data, error } = await query
+  if (error) {
+    console.error('getSalesHistory error:', error.message, error.details, error.hint)
+    // Fallback without embeds so rows still appear if a relation hint fails
+    let fallback = supabase
+      .from('sales')
+      .select('id, branch_id, sale_number, payment_type, subtotal, discount_total, grand_total, amount_paid, status, created_at')
+      .eq('tenant_id', resolvedTenant)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (branchId) fallback = fallback.eq('branch_id', branchId)
+    const { data: plain, error: fallbackError } = await fallback
+    if (fallbackError) {
+      console.error('getSalesHistory fallback error:', fallbackError.message)
+      return []
+    }
+    return (plain ?? []).map((row) => ({
+      ...row,
+      customers: null,
+      profiles: null,
+      branches: null,
+    }))
+  }
   return data ?? []
 }
 
 export async function getSaleWithItems(saleId: string) {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
   const { data } = await supabase
     .from('sales')
     .select(`
@@ -136,22 +167,19 @@ export interface CreateSaleInput {
 }
 
 export async function createSale(input: CreateSaleInput): Promise<{ saleId: string; saleNumber: string } | { error: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
 
   try {
-    const validTenantId = isUUID(input.tenantId) ? input.tenantId : '11111111-1111-1111-1111-111111111111'
-    const validBranchId = isUUID(input.branchId) ? input.branchId : '22222222-2222-2222-2222-222222222222'
-    const validSoldBy = isUUID(input.soldBy) ? input.soldBy : 'edb3eddc-3806-444c-9cfb-4291bb7d4124'
+    if (!isUUID(input.tenantId) || !isUUID(input.branchId) || !isUUID(input.soldBy)) {
+      return { error: 'Missing shop session. Sign in again and retry the sale.' }
+    }
+    const validTenantId = input.tenantId
+    const validBranchId = input.branchId
+    const validSoldBy = input.soldBy
+    const validCustomerId = input.customerId && isUUID(input.customerId) ? input.customerId : null
 
-    let validCustomerId: string | null = null
-    if (input.customerId && isUUID(input.customerId)) {
-      validCustomerId = input.customerId
-    } else if (input.customerId === 'cust-001') {
-      validCustomerId = '77777777-7777-7777-7777-111111111111'
-    } else if (input.customerId === 'cust-002') {
-      validCustomerId = '77777777-7777-7777-7777-222222222222'
-    } else if (input.customerId === 'cust-003') {
-      validCustomerId = '77777777-7777-7777-7777-333333333333'
+    if (input.items.some((item) => !isUUID(item.batchId))) {
+      return { error: 'One or more cart items have an invalid batch id.' }
     }
 
     // 1. Generate sequential sale number per branch
@@ -199,19 +227,10 @@ export async function createSale(input: CreateSaleInput): Promise<{ saleId: stri
 
     const saleId = sale.id
 
-    // Helper for batch ID mapping
-    const mapBatchId = (id: string) => {
-      if (isUUID(id)) return id
-      if (id === 'batch-001') return '55555555-5555-5555-5555-111111111111'
-      if (id === 'batch-003') return '55555555-5555-5555-5555-222222222222'
-      if (id === 'batch-004') return '55555555-5555-5555-5555-333333333333'
-      return '55555555-5555-5555-5555-111111111111'
-    }
-
     // 3. Insert all sale line items
     const saleItemsToInsert = input.items.map(item => ({
       sale_id: saleId,
-      batch_id: mapBatchId(item.batchId),
+      batch_id: item.batchId,
       product_name_snapshot: item.productNameSnapshot,
       quantity: item.quantity,
       unit_price: item.unitPrice,
@@ -229,18 +248,17 @@ export async function createSale(input: CreateSaleInput): Promise<{ saleId: stri
 
     // 4. Deduct batch quantities
     for (const item of input.items) {
-      const bId = mapBatchId(item.batchId)
       const { data: batch } = await supabase
         .from('batches')
         .select('quantity_current')
-        .eq('id', bId)
+        .eq('id', item.batchId)
         .single()
 
       if (batch) {
         await supabase
           .from('batches')
           .update({ quantity_current: Math.max(0, batch.quantity_current - item.quantity) })
-          .eq('id', bId)
+          .eq('id', item.batchId)
       }
     }
 
@@ -293,20 +311,20 @@ export async function recordCustomerPayment(input: {
   receivedBy: string
   note?: string
 }): Promise<{ success: boolean; error?: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
 
   try {
-    const validTenantId = isUUID(input.tenantId) ? input.tenantId : '11111111-1111-1111-1111-111111111111'
-    const validCustomerId = isUUID(input.customerId) ? input.customerId : '77777777-7777-7777-7777-111111111111'
-    const validReceivedBy = isUUID(input.receivedBy) ? input.receivedBy : 'edb3eddc-3806-444c-9cfb-4291bb7d4124'
+    if (!isUUID(input.tenantId) || !isUUID(input.customerId) || !isUUID(input.receivedBy)) {
+      return { success: false, error: 'Missing shop session or customer. Sign in again and retry.' }
+    }
 
     // 1. Insert payment record
     const { error: paymentError } = await supabase.from('payments').insert({
-      tenant_id: validTenantId,
-      customer_id: validCustomerId,
+      tenant_id: input.tenantId,
+      customer_id: input.customerId,
       amount: input.amount,
       method: input.method,
-      received_by: validReceivedBy,
+      received_by: input.receivedBy,
       note: input.note,
     })
 
@@ -316,7 +334,7 @@ export async function recordCustomerPayment(input: {
     const { data: lastEntry } = await supabase
       .from('credit_ledger')
       .select('running_balance')
-      .eq('customer_id', validCustomerId)
+      .eq('customer_id', input.customerId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
@@ -325,8 +343,8 @@ export async function recordCustomerPayment(input: {
     const newBalance = prevBalance - input.amount
 
     await supabase.from('credit_ledger').insert({
-      tenant_id: validTenantId,
-      customer_id: validCustomerId,
+      tenant_id: input.tenantId,
+      customer_id: input.customerId,
       type: 'payment',
       amount: input.amount,
       running_balance: newBalance,
@@ -348,7 +366,7 @@ export async function returnSaleAction(
   reason: string,
   restock = true
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
 
   try {
     // Mark sale as returned
@@ -359,13 +377,16 @@ export async function returnSaleAction(
 
     if (updateError) return { success: false, error: updateError.message }
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Sign in to process a return.' }
+
     // Insert sale return record
     await supabase.from('sale_returns').insert({
       sale_id: saleId,
       reason,
       refunded_amount: 0,
       restocked: restock,
-      created_by: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
+      created_by: user.id,
       created_at: new Date().toISOString(),
     })
 
@@ -403,7 +424,7 @@ export async function returnSaleAction(
 }
 
 export async function getDashboardStats(tenantId: string, branchId?: string) {
-  const supabase = createAdminClient()
+  const supabase = await createDataClient()
 
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
@@ -458,6 +479,12 @@ export async function getDashboardStats(tenantId: string, branchId?: string) {
   const ninetyDaysFromNow = new Date()
   ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90)
 
+  const { data: branchRows } = await supabase
+    .from('branches')
+    .select('id')
+    .eq('tenant_id', tenantId)
+  const branchIds = branchId ? [branchId] : (branchRows ?? []).map((b) => b.id)
+
   let expiryQuery = supabase
     .from('batches')
     .select('id, batch_number, expiry_date, quantity_current, product_id, products(name)')
@@ -466,8 +493,9 @@ export async function getDashboardStats(tenantId: string, branchId?: string) {
     .order('expiry_date', { ascending: true })
     .limit(10)
 
-  if (branchId) expiryQuery = expiryQuery.eq('branch_id', branchId)
-  const { data: expiringBatches } = await expiryQuery
+  const { data: expiringBatches } = branchIds.length > 0
+    ? await expiryQuery.in('branch_id', branchIds)
+    : { data: [] }
 
   const todayRevenue = (todaySales ?? []).reduce((s, sale) => s + sale.grand_total, 0)
   const todayCash = (todaySales ?? [])
@@ -485,6 +513,111 @@ export async function getDashboardStats(tenantId: string, branchId?: string) {
     monthRevenue,
     totalOutstandingCredit,
     expiringBatches: expiringBatches ?? [],
+  }
+}
+
+export async function getShopAlerts() {
+  const supabase = await createDataClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { expiring: [], lowStock: [], overLimit: [] }
+
+  const horizon = new Date()
+  horizon.setDate(horizon.getDate() + 120)
+  const horizonDate = horizon.toISOString().split('T')[0]
+
+  const [{ data: expiringRows }, { data: stockRows }, { data: customers }, { data: ledger }] = await Promise.all([
+    supabase
+      .from('batches')
+      .select('id, batch_number, expiry_date, quantity_current, products(name)')
+      .gt('quantity_current', 0)
+      .lte('expiry_date', horizonDate)
+      .order('expiry_date', { ascending: true })
+      .limit(12),
+    supabase
+      .from('batches')
+      .select('product_id, quantity_current, products(id, name, reorder_level)')
+      .gt('quantity_current', 0),
+    supabase.from('customers').select('id, name, credit_limit').eq('is_active', true),
+    supabase.from('credit_ledger').select('customer_id, running_balance, created_at').order('created_at', { ascending: false }).limit(200),
+  ])
+
+  const stock = new Map<string, { id: string; name: string; reorderLevel: number; qty: number }>()
+  for (const row of stockRows ?? []) {
+    const product = Array.isArray(row.products) ? row.products[0] : row.products
+    if (!product) continue
+    const current = stock.get(product.id) ?? {
+      id: product.id,
+      name: product.name,
+      reorderLevel: product.reorder_level ?? 10,
+      qty: 0,
+    }
+    current.qty += Number(row.quantity_current) || 0
+    stock.set(product.id, current)
+  }
+
+  const latestBalance = new Map<string, number>()
+  for (const row of ledger ?? []) {
+    if (!latestBalance.has(row.customer_id)) latestBalance.set(row.customer_id, Number(row.running_balance) || 0)
+  }
+
+  return {
+    expiring: (expiringRows ?? []).map((row) => {
+      const product = Array.isArray(row.products) ? row.products[0] : row.products
+      return {
+        id: row.id,
+        productName: product?.name ?? 'Product',
+        batchNumber: row.batch_number,
+        expiryDate: row.expiry_date,
+        quantity: row.quantity_current,
+      }
+    }),
+    lowStock: [...stock.values()].filter((item) => item.qty <= item.reorderLevel).slice(0, 8),
+    overLimit: (customers ?? [])
+      .filter((customer) => (latestBalance.get(customer.id) ?? 0) > Number(customer.credit_limit))
+      .slice(0, 8)
+      .map((customer) => ({
+        id: customer.id,
+        name: customer.name,
+        balance: latestBalance.get(customer.id) ?? 0,
+        limit: Number(customer.credit_limit),
+      })),
+  }
+}
+
+export async function searchShop(query: string) {
+  const q = query.trim().replace(/[%_,]/g, '')
+  if (q.length < 2) return { products: [], customers: [], sales: [] }
+  const supabase = await createDataClient()
+  const pattern = `%${q}%`
+
+  const [{ data: products }, { data: customers }, { data: sales }] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id, name, active_ingredient, companies(name)')
+      .or(`name.ilike.${pattern},active_ingredient.ilike.${pattern}`)
+      .limit(4),
+    supabase
+      .from('customers')
+      .select('id, name, phone')
+      .or(`name.ilike.${pattern},phone.ilike.${pattern}`)
+      .limit(4),
+    supabase
+      .from('sales')
+      .select('id, sale_number, grand_total, customers(name)')
+      .ilike('sale_number', pattern)
+      .limit(3),
+  ])
+
+  return {
+    products: (products ?? []).map((product) => {
+      const company = Array.isArray(product.companies) ? product.companies[0] : product.companies
+      return { id: product.id, name: product.name, detail: company?.name ?? product.active_ingredient }
+    }),
+    customers: customers ?? [],
+    sales: (sales ?? []).map((sale) => {
+      const customer = Array.isArray(sale.customers) ? sale.customers[0] : sale.customers
+      return { id: sale.id, saleNumber: sale.sale_number, total: sale.grand_total, customerName: customer?.name ?? '' }
+    }),
   }
 }
 

@@ -1,277 +1,276 @@
-'use client';
+'use client'
 
-import React from 'react';
-import Link from 'next/link';
-import AdminShell from '@/components/layout/AdminShell';
-import { dataStore } from '@/lib/data-store';
+import React, { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import {
   Building2,
-  TrendingUp,
   Store,
+  TrendingUp,
   Users,
-  ShieldCheck,
-  ArrowRight,
-  Sparkles,
-  ChevronRight,
-  ShieldAlert,
-  Clock,
-  CreditCard,
-} from 'lucide-react';
+} from 'lucide-react'
+import AdminShell from '@/components/layout/AdminShell'
+import { dataStore } from '@/lib/data-store'
+import { PageHeader } from '@/components/admin/PageHeader'
+import { StatCard, WidgetState } from '@/components/admin/StatCard'
+import { ChartCard } from '@/components/admin/ChartCard'
+import { Card } from '@/components/admin/Card'
+import { DataTable, type Column } from '@/components/admin/DataTable'
+import { StatusBadge } from '@/components/admin/StatusBadge'
+import { formatPkr, PLACEHOLDER_GMV, PLACEHOLDER_SPARKS } from '@/components/admin/format'
+
+type Range = keyof typeof PLACEHOLDER_GMV extends infer K ? K extends 'note' ? never : K : never
+
+type DealerRow = {
+  id: string
+  dealer: string
+  owner: string
+  city: string
+  license: string
+  outlets: number
+  status: string
+  plan: string
+}
 
 export default function SuperAdminDashboardPage() {
-  const tenant = dataStore.getTenant();
-  const branches = dataStore.getBranches();
-  const sales = dataStore.getSales();
-  const profiles = dataStore.getProfiles();
+  const [ready, setReady] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [range, setRange] = useState<Range>('30D')
 
-  const totalGmvSales = sales.reduce((sum, s) => sum + s.grand_total, 0);
+  useEffect(() => {
+    try {
+      dataStore.getTenants()
+      setReady(true)
+    } catch {
+      setFailed(true)
+    }
+  }, [])
+
+  const tenants = ready ? dataStore.getTenants() : []
+  const branches = ready ? dataStore.getBranches() : []
+  const sales = ready ? dataStore.getSales() : []
+  const profiles = ready ? dataStore.getProfiles() : []
+  const alerts = ready ? dataStore.getAdminNotifications() : []
+  const totalGmv = sales.reduce((sum, s) => sum + s.grand_total, 0)
+
+  const rows: DealerRow[] = useMemo(
+    () =>
+      tenants.map((t) => ({
+        id: t.id,
+        dealer: t.business_name,
+        owner: t.owner_name,
+        city: t.city,
+        license: t.dealer_license_number,
+        outlets: branches.filter((b) => b.tenant_id === t.id).length,
+        status: t.subscription_status,
+        plan: t.subscription_status === 'trial' ? 'Trial' : 'Standard',
+      })),
+    [tenants, branches],
+  )
+
+  const billingBars = [
+    {
+      name: 'Paid',
+      value: Math.max(totalGmv, 1),
+      fill: 'var(--kd-primary)',
+    },
+    {
+      name: 'Upcoming',
+      value: alerts.filter((n) => n.severity === 'warning').reduce((s, n) => s + n.amount, 0),
+      fill: 'var(--kd-accent)',
+    },
+    {
+      name: 'Overdue',
+      value: alerts.filter((n) => n.severity === 'overdue').reduce((s, n) => s + n.amount, 0),
+      fill: 'var(--kd-danger)',
+    },
+  ]
+
+  const donutColors = ['var(--kd-primary)', 'var(--kd-accent)', 'var(--kd-chart-3)', 'var(--kd-warning)']
+  const statusDonut = ['active', 'trial', 'suspended', 'pending_approval']
+    .map((status) => ({
+      name: status.replaceAll('_', ' '),
+      value: tenants.filter((t) => t.subscription_status === status).length,
+    }))
+    .filter((d) => d.value > 0)
+
+  const columns: Column<DealerRow>[] = [
+    { key: 'dealer', header: 'Dealer', sortable: true, sortValue: (r) => r.dealer, render: (r) => r.dealer },
+    { key: 'owner', header: 'Owner', sortable: true, sortValue: (r) => r.owner, render: (r) => r.owner },
+    { key: 'city', header: 'City', sortable: true, sortValue: (r) => r.city, render: (r) => r.city },
+    { key: 'license', header: 'License', render: (r) => r.license },
+    { key: 'outlets', header: 'Outlets', sortable: true, align: 'right', sortValue: (r) => r.outlets, render: (r) => r.outlets },
+    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'plan', header: 'Plan', render: (r) => r.plan },
+  ]
+
+  const gmvSeries = PLACEHOLDER_GMV[range]
 
   return (
     <AdminShell>
-      <div className="space-y-7">
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          crumbs={[{ label: 'Super Admin' }, { label: 'Dashboard' }]}
+          title="Platform overview"
+          description="Dealers, outlets, GMV, and billing in one view."
+          action={{ href: '/admin/tenants', label: 'Manage tenants' }}
+        />
 
-        {/* Page Title Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-2xs font-medium text-slate-400 mb-1">
-              <span>Super Admin</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-semibold">SaaS Control Center</span>
-            </nav>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Platform Operations & Multi-Tenant Summary
-            </h1>
-          </div>
+        {!ready && !failed && <WidgetState kind="loading" title="metrics" />}
+        {failed && <WidgetState kind="error" title="metrics" />}
+        {ready && tenants.length === 0 && <WidgetState kind="empty" title="dealers" />}
 
-          {/* Solid Action Button */}
-          <Link
-            href="/admin/tenants"
-            className="flex items-center gap-2 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-950 font-semibold text-sm px-5 py-3 rounded-xl shadow-sm transition-all transform hover:-translate-y-0.5"
-          >
-            <Building2 className="w-4 h-4 fill-slate-950 text-slate-950" strokeWidth={2} />
-            <span>MANAGE ALL TENANTS</span>
-          </Link>
-        </div>
-
-        {/* Hero Banner */}
-        <div className="bg-slate-950 text-white rounded-2xl p-6 shadow-sm relative overflow-hidden border border-slate-900">
-          <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center space-x-1.5 bg-slate-900 text-amber-400 text-2xs font-semibold px-3 py-1 rounded-full border border-slate-800 uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>SUPER ADMIN OPERATOR PORTAL</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-white">
-                Global Platform Dashboard
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 font-normal">
-                Overseeing multi-tenant pesticide dealers, SaaS subscriptions, license expirations, and platform GMV sales.
-              </p>
+        {ready && tenants.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard icon={Building2} label="Registered dealers" value={String(tenants.length)} hint="vs last month" trend={{ value: 12 }} spark={[...PLACEHOLDER_SPARKS.dealers]} />
+              <StatCard icon={Store} tone="accent" label="Branch outlets" value={String(branches.length)} hint="vs last month" trend={{ value: 8 }} spark={[...PLACEHOLDER_SPARKS.outlets]} />
+              <StatCard icon={TrendingUp} label="Platform GMV" value={formatPkr(totalGmv)} hint="receipts" trend={{ value: 6 }} spark={[...PLACEHOLDER_SPARKS.gmv]} />
+              <StatCard icon={Users} tone="accent" label="Trial accounts" value={String(profiles.filter((p) => tenants.find((t) => t.id === p.tenant_id)?.subscription_status === 'trial').length || profiles.length)} hint="vs last month" trend={{ value: -3 }} spark={[...PLACEHOLDER_SPARKS.trials]} />
             </div>
 
-            <div className="flex items-center space-x-3">
-              <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-right">
-                <span className="text-2xs font-medium text-slate-400 uppercase block">System Security</span>
-                <span className="text-xs font-semibold text-amber-400 font-mono">Operator Token Active</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Light KPI Cards Grid (Green for Active/Sales, Amber for Trial) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          
-          {/* Registered Shops (Green) */}
-          <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xs font-medium uppercase tracking-widest text-emerald-900/80 mb-2">Registered Dealers</p>
-                <p className="text-2xl font-semibold text-emerald-950 tabular-nums tracking-tight leading-none mb-1.5">1 Active Shop</p>
-                <p className="text-2xs font-medium text-emerald-800">{tenant.business_name}</p>
-              </div>
-              <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-xs shrink-0">
-                <Building2 className="w-5 h-5" strokeWidth={2} />
-              </div>
-            </div>
-          </div>
-
-          {/* Outlets (Green) */}
-          <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xs font-medium uppercase tracking-widest text-emerald-900/80 mb-2">Branch Outlets</p>
-                <p className="text-2xl font-semibold text-emerald-950 tabular-nums tracking-tight leading-none mb-1.5">{branches.length} Outlets</p>
-                <p className="text-2xs font-medium text-emerald-800">Multan Region Outlets</p>
-              </div>
-              <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-xs shrink-0">
-                <Store className="w-5 h-5" strokeWidth={2} />
-              </div>
-            </div>
-          </div>
-
-          {/* Platform GMV (Green) */}
-          <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xs font-medium uppercase tracking-widest text-emerald-900/80 mb-2">Platform GMV Sales</p>
-                <p className="text-2xl font-semibold text-emerald-950 tabular-nums tracking-tight leading-none mb-1.5">Rs. {totalGmvSales.toLocaleString()}</p>
-                <p className="text-2xs font-medium text-emerald-800">Counter POS Receipts</p>
-              </div>
-              <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-xs shrink-0">
-                <TrendingUp className="w-5 h-5" strokeWidth={2} />
-              </div>
-            </div>
-          </div>
-
-          {/* Trial Accounts (Amber) */}
-          <div className="bg-amber-50/80 border border-amber-100 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xs font-medium uppercase tracking-widest text-amber-900/80 mb-2">Trial Accounts</p>
-                <p className="text-2xl font-semibold text-amber-950 tabular-nums tracking-tight leading-none mb-1.5">{profiles.length} Active Users</p>
-                <p className="text-2xs font-medium text-amber-800">Role Assignments Active</p>
-              </div>
-              <div className="p-3 bg-amber-500 text-slate-950 rounded-xl shadow-xs shrink-0">
-                <Users className="w-5 h-5" strokeWidth={2} />
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Upcoming & Overdue Tenant Billing Notifications Widget */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-slate-950 text-amber-400 rounded-lg">
-                <CreditCard className="w-4 h-4" strokeWidth={2} />
-              </div>
-              <div>
-                <h2 className="font-semibold text-base text-slate-900">Upcoming &amp; Overdue Tenant Billing</h2>
-                <p className="text-2xs text-slate-500 font-normal">Real-time alerts for tenant recurring billing dues and overdue charges</p>
-              </div>
-            </div>
-            <Link
-              href="/admin/tenants"
-              className="text-xs font-semibold text-amber-700 hover:underline flex items-center gap-1"
-            >
-              <span>View All Tenants</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dataStore.getAdminNotifications().map((notif) => {
-              const isOverdue = notif.severity === 'overdue';
-              return (
-                <div
-                  key={notif.id}
-                  className={`p-4 rounded-xl border space-y-2 flex flex-col justify-between ${
-                    isOverdue ? 'bg-red-50/80 border-red-200 text-red-950' : 'bg-amber-50/80 border-amber-200 text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      isOverdue ? 'bg-red-600 text-white' : 'bg-amber-400 text-slate-950'
-                    }`}>
-                      {isOverdue ? '🔴 OVERDUE ESCALATION' : '🕒 DUE SOON'}
-                    </span>
-                    <span className="text-xs font-mono font-semibold">
-                      Due: {notif.due_date}
-                    </span>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+              <ChartCard
+                className="xl:col-span-3"
+                title="Platform GMV"
+                note="Gross merchandise value across shops"
+                action={
+                  <div className="flex rounded-full border border-border bg-[var(--kd-background)] p-0.5 text-xs">
+                    {(['7D', '30D', '12M'] as Range[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setRange(key)}
+                        className={`rounded-full px-2.5 py-1 font-medium ${range === key ? 'bg-[var(--kd-surface)] text-foreground shadow-[var(--kd-shadow)]' : 'text-muted-foreground'}`}
+                      >
+                        {key}
+                      </button>
+                    ))}
                   </div>
-
-                  <p className="text-xs font-semibold leading-snug">
-                    {notif.message}
-                  </p>
-
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold text-emerald-800">
-                      Rs. {notif.amount.toLocaleString()}
-                    </span>
-                    <Link
-                      href={notif.link_url}
-                      className="bg-slate-950 hover:bg-slate-800 text-amber-400 font-semibold text-2xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-                    >
-                      <span>Open Billing Tab</span>
-                      <ArrowRight className="w-3 h-3 text-amber-400" />
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tenant Shop Management Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-slate-950 text-white rounded-lg">
-                <Building2 className="w-4 h-4" strokeWidth={2} />
-              </div>
-              <h2 className="font-semibold text-base text-slate-900">Registered Pesticide Dealers Portfolio</h2>
-            </div>
-            <span className="bg-amber-400 text-slate-950 text-2xs font-semibold px-3 py-1 rounded-md shadow-2xs">
-              SaaS Active
-            </span>
-          </div>
-
-          {/* Solid Card Detail */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="font-semibold text-slate-900 text-base">{tenant.business_name}</span>
-                <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-2xs font-semibold px-2.5 py-0.5 rounded-full">
-                  {tenant.subscription_status.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 font-normal">
-                Owner: <strong className="text-slate-900 font-semibold">{tenant.owner_name}</strong> ({tenant.phone}) | License: <strong className="text-slate-900 font-mono font-semibold">{tenant.dealer_license_number}</strong> | City: <strong className="text-slate-900 font-semibold">{tenant.city}</strong>
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <Link
-                href="/admin/tenants"
-                className="bg-slate-950 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5"
+                }
               >
-                <span>Manage Subscription &amp; License</span>
-                <ArrowRight className="w-4 h-4 text-amber-400" strokeWidth={2} />
-              </Link>
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={[...gmvSeries]} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gmvFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--kd-primary)" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="var(--kd-primary)" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="var(--kd-border)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--kd-muted)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--kd-muted)' }} axisLine={false} tickLine={false} width={48} />
+                    <Tooltip formatter={(v) => formatPkr(Number(v))} />
+                    <Area type="monotone" dataKey="gmv" stroke="var(--kd-primary)" fill="url(#gmvFill)" strokeWidth={2.25} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard className="xl:col-span-2" title="Tenants by status" note="Subscription mix">
+                <div className="flex items-center gap-2">
+                  <div className="h-[220px] flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={statusDonut} dataKey="value" nameKey="name" innerRadius={58} outerRadius={82} paddingAngle={3} stroke="var(--kd-surface)" strokeWidth={3}>
+                          {statusDonut.map((_, i) => (
+                            <Cell key={i} fill={donutColors[i % donutColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ul className="flex w-28 flex-col gap-2 text-xs">
+                    {statusDonut.map((item, i) => (
+                      <li key={item.name} className="flex items-center justify-between gap-2 capitalize text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="size-2 rounded-full" style={{ background: donutColors[i % donutColors.length] }} />
+                          {item.name}
+                        </span>
+                        <span className="font-medium tabular-nums text-foreground">{item.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </ChartCard>
             </div>
-          </div>
-        </div>
 
-        {/* Quick Operator Actions */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-          <p className="text-2xs font-medium uppercase tracking-widest text-slate-500">Operator Platform Shortcuts</p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/admin/tenants"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white text-xs font-semibold shadow-xs transition-all transform active:scale-95"
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Tenant Portfolio</span>
-            </Link>
-            <Link
-              href="/admin/audit-logs"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-semibold shadow-xs transition-all transform active:scale-95"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>Platform Audit Logs</span>
-            </Link>
-            <Link
-              href="/pos"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all transform active:scale-95"
-            >
-              <Store className="w-4 h-4" />
-              <span>Test Counter POS</span>
-            </Link>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+              <ChartCard className="xl:col-span-3" title="Billing by status" note="Amounts in PKR">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={billingBars} barSize={28}>
+                    <CartesianGrid vertical={false} stroke="var(--kd-border)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--kd-muted)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--kd-muted)' }} axisLine={false} tickLine={false} width={48} />
+                    <Tooltip formatter={(v) => formatPkr(Number(v))} />
+                    <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                      {billingBars.map((bar) => (
+                        <Cell key={bar.name} fill={bar.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
 
+              <Card className="xl:col-span-2">
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                  <h2 className="text-base font-semibold tracking-tight">Billing alerts</h2>
+                  <Link href="/admin/tenants" className="text-sm font-medium text-accent">View all</Link>
+                </div>
+                {alerts.length === 0 ? (
+                  <p className="px-5 py-10 text-center text-sm text-muted-foreground">No billing alerts.</p>
+                ) : (
+                  <ul>
+                    {alerts.map((alert) => (
+                      <li key={alert.id} className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5 last:border-0">
+                        <div className="min-w-0">
+                          <div className="mb-1 flex items-center gap-2">
+                            <StatusBadge status={alert.severity === 'overdue' ? 'overdue' : 'due soon'} />
+                          </div>
+                          <p className="truncate text-sm font-medium">{alert.tenant_name}</p>
+                          <p className="text-xs text-muted-foreground">Due {alert.due_date}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold tabular-nums">{formatPkr(alert.amount)}</p>
+                          <Link href={alert.link_url} className="text-xs font-medium text-accent">Open billing</Link>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            </div>
+
+            <Card>
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div>
+                  <h2 className="text-base font-semibold tracking-tight">Registered dealers</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{rows.length} shops on the platform</p>
+                </div>
+              </div>
+              <DataTable
+                rows={rows}
+                columns={columns}
+                emptyLabel="No dealers yet."
+                rowAction={(row) => ({ href: `/admin/tenants/${row.id}`, label: 'Open dealer' })}
+              />
+            </Card>
+          </>
+        )}
       </div>
     </AdminShell>
-  );
+  )
 }

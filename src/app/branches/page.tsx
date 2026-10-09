@@ -1,89 +1,102 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { dataStore } from '@/lib/data-store';
-import { ArrowLeftRight, Plus, CheckCircle2, Clock, Truck } from 'lucide-react';
+import React, { useEffect, useState } from 'react'
+import { MapPin } from 'lucide-react'
+import { addBranch, getBranchLocations } from '@/actions/branches'
+import ModuleLocked from '@/components/shop/ModuleLocked'
+import { useToast } from '@/components/ui/Toast'
+import { usePagination } from '@/hooks/usePagination'
+import Pagination from '@/components/ui/Pagination'
+
+type Locations = Awaited<ReturnType<typeof getBranchLocations>>
 
 export default function BranchesPage() {
-  const branches = dataStore.getBranches();
-  const transfers = dataStore.getTransfers();
+  const { showToast } = useToast()
+  const [data, setData] = useState<Locations | null>(null)
+  const [name, setName] = useState('')
+  const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    setData(await getBranchLocations())
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const branchRows = data && !('error' in data) ? data.branches : []
+  const pagination = usePagination(branchRows, 10)
+
+  if (!data) return <p className="text-sm text-muted-foreground">Loading outlets…</p>
+  if ('error' in data) {
+    return (
+      <ModuleLocked
+        title="Branch locations are off"
+        body="This shop runs as one outlet. Extra outlets and the branch list stay hidden until Super Admin turns on Multi-Branch access."
+      />
+    )
+  }
+
+  const handleAdd = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setSaving(true)
+    const res = await addBranch({ name, address, phone })
+    setSaving(false)
+    if ('success' in res) {
+      showToast('Outlet added.', 'success')
+      setName('')
+      setAddress('')
+      setPhone('')
+      load()
+    } else {
+      showToast(res.error || 'Could not add the outlet.', 'error')
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center space-x-2">
-            <ArrowLeftRight className="h-6 w-6 text-emerald-800" />
-            <span>Multi-Branch Stock Transfers (Approval Flow)</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Request, approve, and receive spray batch inventory between physical shop branches.
-          </p>
-        </div>
-
-        <button className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-1.5 shadow-sm">
-          <Plus className="h-4 w-4" />
-          <span>New Transfer Request</span>
-        </button>
+      <div className="rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-6 shadow-[var(--kd-shadow)]">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
+          <MapPin className="size-5 text-primary" />
+          Branch locations
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Outlets for this shop. Transfers can move stock between them.</p>
       </div>
 
-      {/* Branches Summary Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {branches.map((branch) => (
-          <div key={branch.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="font-extrabold text-base text-slate-900">{branch.name}</h3>
-                <p className="text-xs text-slate-500">{branch.address}</p>
-              </div>
-              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                Active Branch
-              </span>
-            </div>
-
-            <div className="text-xs text-slate-600 flex justify-between pt-2 border-t border-slate-100">
-              <span>Phone: <strong>{branch.phone}</strong></span>
-              <span>Manager: <strong>Muhammad Asif</strong></span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Stock Transfer History & In-Transit Logs */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 bg-slate-900 text-white font-bold text-sm flex items-center space-x-2">
-          <Truck className="h-4 w-4 text-emerald-400" />
-          <span>Active Stock Transfer Logs</span>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {transfers.map((trf) => (
-            <div key={trf.id} className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="font-extrabold text-slate-900">{trf.from_branch_name}</span>
-                  <span className="text-slate-400">➔</span>
-                  <span className="font-extrabold text-emerald-800">{trf.to_branch_name}</span>
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Requested by: {trf.requested_by_name} | Date: {new Date(trf.created_at).toLocaleString()}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <span className="bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded text-xs flex items-center space-x-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span className="uppercase">{trf.status}</span>
-                </span>
-                <button className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-3 rounded text-xs">
-                  Mark Received
-                </button>
-              </div>
+      <div className="overflow-hidden rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] shadow-[var(--kd-shadow)]">
+        <div className="grid gap-4 p-4 md:grid-cols-2">
+          {pagination.pageItems.map((branch) => (
+            <div key={branch.id} className="rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-5">
+              <p className="font-medium text-foreground">{branch.name}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{branch.address}</p>
+              {branch.phone && <p className="mt-1 text-xs text-muted-foreground">{branch.phone}</p>}
             </div>
           ))}
         </div>
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          from={pagination.from}
+          to={pagination.to}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
       </div>
+
+      <form onSubmit={handleAdd} className="grid gap-3 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-5 sm:grid-cols-3">
+        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Outlet name" className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+        <input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Address" className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+        <div className="flex gap-2">
+          <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Phone" className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+          <button type="submit" disabled={saving} className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50">
+            Add
+          </button>
+        </div>
+      </form>
     </div>
-  );
+  )
 }

@@ -1,8 +1,8 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Building2,
@@ -14,270 +14,246 @@ import {
   Menu,
   X,
   Store,
-  Bell,
-  ChevronDown,
-  Sparkles,
-} from 'lucide-react';
-import AdminNotificationDropdown from '@/components/layout/AdminNotificationDropdown';
+  Search,
+  Moon,
+  Sun,
+} from 'lucide-react'
+import { dataStore } from '@/lib/data-store'
+import { SidebarItem } from '@/components/admin/SidebarItem'
+import AdminNotificationDropdown from '@/components/layout/AdminNotificationDropdown'
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const pathname = usePathname()
+  const router = useRouter()
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [dark, setDark] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  const isLoginPage = pathname === '/admin/login';
+  const isLoginPage = pathname === '/admin/login'
 
   useEffect(() => {
     if (isLoginPage) {
-      setIsAuthenticated(true);
-      return;
+      setIsAuthenticated(true)
+      return
     }
-    const authFlag = localStorage.getItem('super_admin_authenticated');
+    const authFlag = localStorage.getItem('super_admin_authenticated')
     if (authFlag !== 'true') {
-      setIsAuthenticated(false);
-      router.push('/admin/login');
+      setIsAuthenticated(false)
+      router.push('/admin/login')
     } else {
-      setIsAuthenticated(true);
+      setIsAuthenticated(true)
     }
-  }, [pathname, router, isLoginPage]);
+  }, [pathname, router, isLoginPage])
+
+  useEffect(() => {
+    const stored = localStorage.getItem('kd_admin_theme')
+    const on = stored === 'dark'
+    setDark(on)
+    document.documentElement.classList.toggle('dark', on)
+  }, [])
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
 
   if (isLoginPage) {
-    return <main className="min-h-screen bg-[#F4F7FB]">{children}</main>;
+    return <main className="min-h-screen">{children}</main>
   }
 
   if (isAuthenticated === null || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center text-slate-900 text-xs font-bold">
-        Verifying Super Admin Authorization...
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Verifying Super Admin authorization...
       </div>
-    );
+    )
   }
 
+  const pending = dataStore.getPendingRegistrations().length
   const navItems = [
-    { href: '/admin/dashboard', label: 'Platform Dashboard', icon: LayoutDashboard },
-    { href: '/admin/tenants', label: 'Registered Tenant Shops', icon: Building2 },
-    { href: '/admin/approvals', label: 'Pending Approvals', icon: ShieldCheck, badge: 3 },
-    { href: '/admin/audit-logs', label: 'Platform Audit Logs', icon: FileText },
-  ];
+    { href: '/admin/dashboard', label: 'Platform dashboard', icon: LayoutDashboard },
+    { href: '/admin/tenants', label: 'Registered tenant shops', icon: Building2 },
+    { href: '/admin/approvals', label: 'Pending approvals', icon: ShieldCheck, badge: pending },
+    { href: '/admin/audit-logs', label: 'Platform audit logs', icon: FileText },
+  ]
 
   const handleLogout = () => {
-    localStorage.removeItem('super_admin_authenticated');
-    router.push('/admin/login');
-  };
+    localStorage.removeItem('super_admin_authenticated')
+    router.push('/admin/login')
+  }
+
+  const toggleTheme = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const next = !dark
+    const root = document.documentElement
+    root.style.setProperty('--theme-x', `${event.clientX}px`)
+    root.style.setProperty('--theme-y', `${event.clientY}px`)
+
+    const apply = () => {
+      setDark(next)
+      root.classList.toggle('dark', next)
+      localStorage.setItem('kd_admin_theme', next ? 'dark' : 'light')
+    }
+
+    const doc = document as Document & {
+      startViewTransition?: (callback: () => void) => { finished: Promise<void> }
+    }
+    if (!doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      apply()
+      return
+    }
+
+    root.classList.add('kd-theme-anim')
+    doc.startViewTransition(apply).finished.finally(() => {
+      root.classList.remove('kd-theme-anim')
+    })
+  }
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = query.trim()
+    router.push(q ? `/admin/tenants?q=${encodeURIComponent(q)}` : '/admin/tenants')
+  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F4F7FB] text-slate-900 font-jakarta antialiased">
-      {/* Super Admin Top Header matching Screenshot */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-2xs no-print">
-        <div className="h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
-          
-          {/* Brand Badge */}
-          <div className="flex items-center space-x-3 shrink-0">
-            <button
-              onClick={() => setIsMobileOpen(!isMobileOpen)}
-              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <Menu className="w-5 h-5" strokeWidth={2} />
-            </button>
-
-            {/* Dark Brand Badge Header */}
-            <div className="bg-slate-950 text-white px-4 py-2 rounded-2xl flex items-center space-x-3 shadow-md border border-slate-900">
-              <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs">
-                <svg className="w-5 h-5 text-slate-950" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V7l-9-5zm0 4a3 3 0 110 6 3 3 0 010-6zm0 14.3c-2.5-1-4.7-2.9-5.8-5.3 1.9-1.3 4.2-2 5.8-2s3.9.7 5.8 2c-1.1 2.4-3.3 4.3-5.8 5.3z"/>
-                </svg>
-              </div>
-              <div className="leading-tight">
-                <div className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-                  <span>KisanDost</span>
-                  <span className="bg-slate-900 text-amber-300 border border-amber-400/30 text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    SUPER ADMIN
-                  </span>
-                </div>
-                <div className="text-[9px] font-medium text-amber-200/80 tracking-wider uppercase">
-                  MULTI-TENANT SAAS OPERATIONS CENTER
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Header Controls */}
-          <div className="flex items-center space-x-3 shrink-0">
-            {/* Real-time Billing & Alerts Notification Bell Dropdown */}
+    <div className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased">
+      <header className="no-print sticky top-0 z-40 border-b border-border bg-[var(--kd-surface)]">
+        <div className="flex h-14 items-center gap-3 px-4">
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen(true)}
+            className="rounded-[var(--kd-radius)] p-2 text-muted-foreground lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="size-5" />
+          </button>
+          <Link href="/admin/dashboard" className="flex shrink-0 items-center gap-2 text-sm font-semibold text-foreground">
+            <span className="flex size-7 overflow-hidden rounded-lg">
+              <span className="w-1/2 bg-primary" />
+              <span className="w-1/2 bg-accent" />
+            </span>
+            KisanDost
+          </Link>
+          <form onSubmit={submitSearch} className="relative mx-auto hidden w-full max-w-md md:block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search dealers"
+              className="w-full rounded-[var(--kd-radius)] border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+            />
+          </form>
+          <div className="ml-auto flex items-center gap-2">
             <AdminNotificationDropdown />
-
-            {/* Administrator Profile Pill */}
-            <div className="hidden sm:flex items-center space-x-2.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80">
-              <div className="w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center shadow-xs">
-                M
-              </div>
-              <div className="text-left text-2xs leading-tight">
-                <div className="font-semibold text-slate-900">Super Admin</div>
-                <div className="text-slate-500 font-medium">Administrator</div>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </div>
-
-            {/* Switch to Counter Button */}
-            <Link
-              href="/dashboard"
-              className="hidden md:flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-300 transition-colors shadow-2xs"
-            >
-              <Store className="w-4 h-4 text-emerald-600" />
-              <span>Switch to Shop Counter</span>
-            </Link>
-
-            {/* Sign Out Button */}
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
+              type="button"
+              onClick={toggleTheme}
+              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="flex size-9 items-center justify-center rounded-full border border-border text-foreground hover:bg-[var(--kd-primary-soft)]"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
+              <span key={dark ? 'sun' : 'moon'} className="kd-theme-icon">
+                {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              </span>
             </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-[var(--kd-radius)] border border-border px-2 py-1.5 text-sm"
+              >
+                <span className="flex size-7 items-center justify-center rounded-full bg-[var(--kd-primary-soft)] text-xs font-medium text-primary">
+                  S
+                </span>
+                <span className="hidden sm:block">Super Admin</span>
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 z-50 mt-2 w-max rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-1 shadow-[var(--kd-shadow)]">
+                  <Link href="/dashboard" className="flex items-center gap-2 whitespace-nowrap rounded-[var(--kd-radius)] px-3 py-2 text-sm hover:bg-[var(--kd-primary-soft)]" onClick={() => setMenuOpen(false)}>
+                    <Store className="size-4 shrink-0" />
+                    Switch to shop counter
+                  </Link>
+                  <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-[var(--kd-radius)] px-3 py-2 text-sm text-danger hover:bg-[var(--kd-primary-soft)]">
+                    <LogOut className="size-4" />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Workspace Layout */}
-      <div className="flex flex-1 relative">
-        {/* Desktop Sidebar */}
+      <div className="relative flex flex-1">
         <aside
-          className={`hidden lg:block fixed top-16 bottom-0 left-0 z-30 transition-[width] duration-200 ease-in-out no-print bg-white text-slate-900 border-r border-slate-200 shadow-sm ${
+          className={`no-print fixed bottom-0 left-0 top-14 z-30 hidden border-r border-border bg-[var(--kd-surface)] transition-[width] lg:block ${
             isCollapsed ? 'w-16' : 'w-64'
           }`}
         >
-          <div className="flex flex-col h-full select-none overflow-hidden relative">
-            {/* Header */}
-            <div className={`h-14 flex items-center shrink-0 border-b border-slate-200 ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'}`}>
-              {!isCollapsed && (
-                <div className="flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span className="text-2xs font-medium uppercase tracking-widest text-slate-600">
-                    SUPER ADMIN CONTROLS
-                  </span>
-                </div>
-              )}
+          <div className="flex h-full flex-col">
+            <div className={`flex h-12 items-center border-b border-border ${isCollapsed ? 'justify-center' : 'justify-between px-3'}`}>
+              {!isCollapsed && <span className="text-xs text-muted-foreground">Platform</span>}
               <button
+                type="button"
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className="hidden lg:flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors ml-auto border border-slate-200 cursor-pointer"
+                className="rounded-[var(--kd-radius)] p-1.5 text-muted-foreground hover:bg-[var(--kd-primary-soft)]"
+                aria-label="Collapse sidebar"
               >
-                {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
               </button>
             </div>
-
-            {/* Nav Items */}
-            <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5">
-              {navItems.map((item) => {
-                const active = pathname === item.href || (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
-                const Icon = item.icon;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={isCollapsed ? item.label : undefined}
-                    className={`
-                      relative group flex items-center gap-3 rounded-xl text-xs transition-all duration-150
-                      ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-3'}
-                      ${active
-                        ? 'bg-slate-950 text-white font-semibold shadow-sm'
-                        : 'text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900'
-                      }
-                    `}
-                  >
-                    <Icon
-                      className={`shrink-0 w-4 h-4 ${active ? 'text-amber-400' : 'text-slate-400 group-hover:text-emerald-600'}`}
-                      strokeWidth={2}
-                    />
-                    {!isCollapsed && <span className="truncate">{item.label}</span>}
-                    {!isCollapsed && item.badge && (
-                      <span className="ml-auto text-[10px] font-semibold bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full shadow-xs">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Bottom Operator Status Badge */}
-            <div className="shrink-0 border-t border-slate-200 p-3 bg-slate-50/80">
-              {!isCollapsed ? (
-                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1 text-2xs shadow-2xs">
-                  <div className="flex items-center space-x-2 text-emerald-600">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-semibold text-xs text-slate-900">System Operator Active</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-normal leading-tight">
-                    All systems are running smoothly. Platform is active and secure.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex justify-center p-1 text-emerald-600" title="System Operator Active">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-              )}
-            </div>
+            <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
+              {navItems.map((item) => (
+                <SidebarItem
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  badge={item.badge}
+                  collapsed={isCollapsed}
+                  active={pathname === item.href || (item.href !== '/admin/dashboard' && pathname.startsWith(item.href))}
+                />
+              ))}
+            </nav>
           </div>
         </aside>
 
-        {/* Mobile Drawer */}
         {isMobileOpen && (
-          <div className="lg:hidden fixed inset-0 z-[90] flex no-print">
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsMobileOpen(false)} />
-            <div className="relative w-64 max-w-[85vw] h-full z-10 bg-[#061226] p-4 space-y-4 text-white">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <span className="text-xs font-bold uppercase text-blue-400">Super Admin Menu</span>
-                <button onClick={() => setIsMobileOpen(false)} className="text-slate-400 hover:text-white">
-                  <X className="w-5 h-5" />
+          <div className="no-print fixed inset-0 z-[90] flex lg:hidden">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setIsMobileOpen(false)} />
+            <div className="relative z-10 flex h-full w-64 flex-col bg-[var(--kd-surface)] p-3">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-medium">Menu</span>
+                <button type="button" onClick={() => setIsMobileOpen(false)} aria-label="Close menu">
+                  <X className="size-5" />
                 </button>
               </div>
-              <div className="space-y-1">
-                {navItems.map((item) => {
-                  const active = pathname === item.href;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsMobileOpen(false)}
-                      className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-bold ${
-                        active ? 'bg-blue-600 text-white font-semibold' : 'text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="w-4 h-4" strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </div>
-                      {item.badge && (
-                        <span className="text-[10px] font-semibold bg-red-500 text-white px-2 py-0.5 rounded-full">
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
+              <nav className="flex flex-col gap-1">
+                {navItems.map((item) => (
+                  <SidebarItem
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    badge={item.badge}
+                    active={pathname === item.href}
+                    onClick={() => setIsMobileOpen(false)}
+                  />
+                ))}
+              </nav>
             </div>
           </div>
         )}
 
-        {/* Main Content Workspace */}
-        <main
-          className={`flex-1 min-w-0 transition-[margin] duration-200 ease-in-out bg-[#F4F7FB] ${
-            isCollapsed ? 'lg:ml-16' : 'lg:ml-64'
-          }`}
-        >
-          <div className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
-          </div>
+        <main className={`min-w-0 flex-1 transition-[margin] ${isCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+          <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
     </div>
-  );
+  )
 }

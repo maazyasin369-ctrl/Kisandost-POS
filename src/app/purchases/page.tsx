@@ -21,6 +21,8 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { usePagination } from '@/hooks/usePagination';
+import Pagination from '@/components/ui/Pagination';
 
 interface FormItem {
   product_id: string;
@@ -295,6 +297,7 @@ export default function PurchasesPage() {
     );
     return matchesPo || matchesSupplier || matchesBranch || matchesItems;
   });
+  const pagination = usePagination(filteredPurchases, 10);
 
   // Check if deleting purchase has sold stock
   const getDeletionCheck = (purchase: Purchase) => {
@@ -321,22 +324,22 @@ export default function PurchasesPage() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-[var(--kd-surface)] p-6 rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center space-x-2.5 tracking-tight">
-            <div className="p-2 bg-slate-950 text-yellow-400 rounded-xl">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center space-x-2.5 tracking-tight">
+            <div className="rounded-xl bg-[var(--kd-primary-soft)] p-2 text-primary">
               <ShoppingBag className="h-5 w-5" strokeWidth={2.2} />
             </div>
             <span>Supplier Purchases &amp; Order Stocking</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-normal">
             Receive purchase orders from company distributors, view item details, and automatically create or top-up batch inventory.
           </p>
         </div>
 
         <button
           onClick={openCreateModal}
-          className="bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+          className="bg-primary text-primary-foreground hover:opacity-90 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-[var(--kd-shadow)] transition-all cursor-pointer"
         >
           <Plus className="h-4 w-4 stroke-[3]" />
           <span>New Purchase Order (PO)</span>
@@ -344,78 +347,78 @@ export default function PurchasesPage() {
       </div>
 
       {/* Toolbar / Search Filter */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-3">
+      <div className="bg-[var(--kd-surface)] p-4 rounded-xl shadow-[var(--kd-shadow)] border border-border flex items-center space-x-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search PO by number (e.g. PO-2026-081), supplier, branch, product, or batch number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-normal"
+            className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none font-normal"
           />
         </div>
       </div>
 
       {/* Purchases List */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800 text-sm flex items-center justify-between">
+      <div className="bg-[var(--kd-surface)] rounded-xl shadow-[var(--kd-shadow)] border border-border overflow-hidden">
+        <div className="p-4 bg-background border-b border-border font-semibold text-foreground text-sm flex items-center justify-between">
           <span>Recent Purchase Orders</span>
-          <span className="text-xs text-slate-500 font-normal">{filteredPurchases.length} order(s) found</span>
+          <span className="text-xs text-muted-foreground font-normal">{filteredPurchases.length} order(s) found</span>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-border">
           {filteredPurchases.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs font-normal">
+            <div className="p-8 text-center text-muted-foreground text-xs font-normal">
               No purchase orders found. Click &quot;New Purchase Order&quot; to add stock.
             </div>
           ) : (
-            filteredPurchases.map(p => (
+            pagination.pageItems.map(p => (
               <div
                 key={p.id}
-                className="p-4 hover:bg-slate-50 transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                className="p-4 hover:bg-[var(--kd-primary-soft)] transition-colors flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
               >
                 <div className="space-y-2 flex-1 cursor-pointer" onClick={() => setViewingPurchase(p)}>
                   <div className="flex items-center space-x-3 flex-wrap gap-y-1">
-                    <span className="font-semibold text-slate-900 text-base hover:text-emerald-700 transition-colors">
+                    <span className="font-semibold text-foreground text-base hover:text-primary transition-colors">
                       {p.purchase_number}
                     </span>
-                    <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="bg-[var(--kd-primary-soft)] text-primary text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
                       <CheckCircle className="h-3.5 w-3.5" />
                       {p.status.toUpperCase()}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-                    <span className="flex items-center gap-1 font-semibold text-slate-800">
-                      <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1 font-semibold text-foreground">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                       {p.supplier_name}
                     </span>
                     <span className="flex items-center gap-1 font-medium">
-                      <Store className="h-3.5 w-3.5 text-slate-400" />
+                      <Store className="h-3.5 w-3.5 text-muted-foreground" />
                       {p.branch_name}
                     </span>
-                    <span className="flex items-center gap-1 text-slate-400 font-normal">
+                    <span className="flex items-center gap-1 text-muted-foreground font-normal">
                       <Calendar className="h-3.5 w-3.5" />
                       {new Date(p.created_at).toLocaleString()}
                     </span>
                   </div>
 
                   {/* Summary of Products Ordered */}
-                  <div className="text-xs text-slate-500 flex items-center gap-1 flex-wrap font-normal">
-                    <span className="font-semibold text-slate-700">Ordered Products:</span>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap font-normal">
+                    <span className="font-semibold text-foreground">Ordered Products:</span>
                     {(p.items || []).map((item, idx) => (
-                      <span key={idx} className="bg-slate-100 text-slate-700 text-[11px] font-medium px-2 py-0.5 rounded">
+                      <span key={idx} className="bg-background text-foreground text-[11px] font-medium px-2 py-0.5 rounded">
                         {item.product_name || 'Product'} (Batch: {item.batch_number}) × {item.quantity_ordered}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between md:justify-end w-full md:w-auto gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+                <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between md:justify-end w-full md:w-auto gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-border">
                   <div className="text-right">
-                    <div className="text-[11px] text-slate-500 font-medium">Total Cost Amount</div>
-                    <div className="text-lg font-semibold text-emerald-700 font-mono">
+                    <div className="text-[11px] text-muted-foreground font-medium">Total Cost Amount</div>
+                    <div className="text-lg font-semibold text-primary font-mono">
                       Rs. {p.total_amount.toLocaleString()}
                     </div>
                   </div>
@@ -424,7 +427,7 @@ export default function PurchasesPage() {
                   <div className="flex items-center space-x-1.5">
                     <button
                       onClick={() => setViewingPurchase(p)}
-                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 border border-emerald-200 transition-colors cursor-pointer"
+                      className="bg-[var(--kd-primary-soft)] hover:bg-[var(--kd-primary-soft)] text-primary font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 border border-primary/20 transition-colors cursor-pointer"
                       title="View Product Item Details"
                     >
                       <Eye className="h-3.5 w-3.5" />
@@ -433,7 +436,7 @@ export default function PurchasesPage() {
 
                     <button
                       onClick={() => openEditModal(p)}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 border border-slate-200 transition-colors cursor-pointer"
+                      className="bg-background hover:bg-[var(--kd-primary-soft)] text-foreground font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 border border-border transition-colors cursor-pointer"
                       title="Edit Purchase Order"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -442,7 +445,7 @@ export default function PurchasesPage() {
 
                     <button
                       onClick={() => setDeletingPurchase(p)}
-                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 border border-rose-200 transition-colors cursor-pointer"
+                      className="bg-[color-mix(in_srgb,var(--kd-danger)_12%,transparent)] hover:bg-rose-100 text-danger font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 border border-rose-200 transition-colors cursor-pointer"
                       title="Delete Purchase Order"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -454,27 +457,37 @@ export default function PurchasesPage() {
             ))
           )}
         </div>
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          from={pagination.from}
+          to={pagination.to}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
       </div>
 
       {/* PO Itemized Detail View Modal */}
       {viewingPurchase && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden space-y-0">
-            <div className="bg-slate-100 border-b border-slate-200 text-slate-900 p-5 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-2xl max-w-2xl w-full border border-border overflow-hidden space-y-0">
+            <div className="bg-background border-b border-border text-foreground p-5 flex justify-between items-center">
               <div>
                 <div className="flex items-center space-x-2">
-                  <h2 className="text-lg font-semibold text-slate-900">{viewingPurchase.purchase_number}</h2>
-                  <span className="bg-emerald-600 text-white font-semibold text-[10px] px-2.5 py-0.5 rounded-full">
+                  <h2 className="text-lg font-semibold text-foreground">{viewingPurchase.purchase_number}</h2>
+                  <span className="bg-primary text-white font-semibold text-[10px] px-2.5 py-0.5 rounded-full">
                     {viewingPurchase.status.toUpperCase()}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5 font-normal">
+                <p className="text-xs text-muted-foreground mt-0.5 font-normal">
                   Ordered on {new Date(viewingPurchase.created_at).toLocaleString()}
                 </p>
               </div>
               <button
                 onClick={() => setViewingPurchase(null)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-[var(--kd-primary-soft)] transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -483,18 +496,18 @@ export default function PurchasesPage() {
             <div className="p-6 space-y-5 text-xs">
               {/* Supplier & Branch Info Cards */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
-                  <span className="text-slate-500 font-medium block text-[11px]">SUPPLIER DISTRIBUTOR</span>
-                  <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-emerald-700" />
+                <div className="bg-background p-3.5 rounded-xl border border-border space-y-1">
+                  <span className="text-muted-foreground font-medium block text-[11px]">SUPPLIER DISTRIBUTOR</span>
+                  <div className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-primary" />
                     <span>{viewingPurchase.supplier_name}</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
-                  <span className="text-slate-500 font-medium block text-[11px]">RECEIVING BRANCH</span>
-                  <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                    <Store className="h-4 w-4 text-emerald-700" />
+                <div className="bg-background p-3.5 rounded-xl border border-border space-y-1">
+                  <span className="text-muted-foreground font-medium block text-[11px]">RECEIVING BRANCH</span>
+                  <div className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                    <Store className="h-4 w-4 text-primary" />
                     <span>{viewingPurchase.branch_name}</span>
                   </div>
                 </div>
@@ -502,14 +515,14 @@ export default function PurchasesPage() {
 
               {/* Itemized Products Table */}
               <div className="space-y-2">
-                <div className="font-semibold text-slate-900 text-sm flex items-center space-x-1">
-                  <Package className="h-4 w-4 text-emerald-700" />
+                <div className="font-semibold text-foreground text-sm flex items-center space-x-1">
+                  <Package className="h-4 w-4 text-primary" />
                   <span>Itemized Order Breakdown</span>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-medium border-b border-slate-200">
+                    <thead className="bg-background text-foreground font-medium border-b border-border">
                       <tr>
                         <th className="p-3">Product Name</th>
                         <th className="p-3">Batch #</th>
@@ -519,25 +532,25 @@ export default function PurchasesPage() {
                         <th className="p-3 text-right">Line Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-border">
                       {(viewingPurchase.items || []).map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50">
-                          <td className="p-3 font-semibold text-slate-900">
+                        <tr key={idx} className="hover:bg-[var(--kd-primary-soft)]">
+                          <td className="p-3 font-semibold text-foreground">
                             {item.product_name}
                           </td>
-                          <td className="p-3 font-mono font-semibold text-slate-700">
+                          <td className="p-3 font-mono font-semibold text-foreground">
                             {item.batch_number}
                           </td>
-                          <td className="p-3 text-slate-600 font-normal">
+                          <td className="p-3 text-muted-foreground font-normal">
                             {item.expiry_date}
                           </td>
-                          <td className="p-3 text-center font-semibold text-slate-900">
+                          <td className="p-3 text-center font-semibold text-foreground">
                             {item.quantity_ordered} units
                           </td>
-                          <td className="p-3 text-right font-mono font-semibold text-slate-800">
+                          <td className="p-3 text-right font-mono font-semibold text-foreground">
                             Rs. {item.cost_price.toLocaleString()}
                           </td>
-                          <td className="p-3 text-right font-mono font-semibold text-emerald-800">
+                          <td className="p-3 text-right font-mono font-semibold text-primary">
                             Rs. {(item.quantity_ordered * item.cost_price).toLocaleString()}
                           </td>
                         </tr>
@@ -548,19 +561,19 @@ export default function PurchasesPage() {
               </div>
 
               {/* PO Total Summary */}
-              <div className="bg-emerald-50 border border-emerald-200 text-slate-900 p-4 rounded-xl flex items-center justify-between shadow-2xs">
-                <span className="font-semibold text-slate-700">Total Purchase Order Amount:</span>
-                <span className="text-xl font-semibold font-mono text-emerald-800">
+              <div className="bg-[var(--kd-primary-soft)] border border-primary/20 text-foreground p-4 rounded-xl flex items-center justify-between shadow-2xs">
+                <span className="font-semibold text-foreground">Total Purchase Order Amount:</span>
+                <span className="text-xl font-semibold font-mono text-primary">
                   Rs. {viewingPurchase.total_amount.toLocaleString()}
                 </span>
               </div>
 
               {/* Modal Actions */}
-              <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center space-x-3 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={() => openEditModal(viewingPurchase)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                  className="flex-1 bg-background hover:bg-[var(--kd-primary-soft)] text-foreground font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-1 transition-colors cursor-pointer"
                 >
                   <Pencil className="h-4 w-4" />
                   <span>Edit Purchase Order</span>
@@ -569,7 +582,7 @@ export default function PurchasesPage() {
                 <button
                   type="button"
                   onClick={() => setViewingPurchase(null)}
-                  className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="flex-1 bg-primary text-primary-foreground hover:opacity-90 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
                 >
                   Close View
                 </button>
@@ -581,26 +594,26 @@ export default function PurchasesPage() {
 
       {/* Add / Edit Purchase Order Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in duration-200">
-            <div className="bg-emerald-700 text-white p-5 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-2xl max-w-4xl w-full border border-border overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="bg-primary text-primary-foreground text-white p-5 flex justify-between items-center shrink-0">
               <h2 className="text-base font-semibold flex items-center space-x-2">
-                <ShoppingBag className="h-5 w-5 text-emerald-200" />
+                <ShoppingBag className="h-5 w-5 text-primary-foreground" />
                 <span>{editingPurchase ? `Edit Purchase Order (${editingPurchase.purchase_number})` : 'Record New Supplier Purchase'}</span>
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-300 hover:text-white font-semibold text-lg cursor-pointer">×</button>
+              <button onClick={() => setShowModal(false)} className="cursor-pointer text-lg font-semibold text-primary-foreground/80 hover:text-primary-foreground">×</button>
             </div>
 
             <form onSubmit={handleSubmitPurchase} className="p-6 space-y-5 text-xs overflow-y-auto flex-1">
               {/* Header Fields: Branch & Supplier */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-background p-4 rounded-xl border border-border">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Receiving Branch *</label>
+                  <label className="block font-medium text-foreground mb-1">Receiving Branch *</label>
                   <select
                     value={selectedBranchId}
                     onChange={(e) => setSelectedBranchId(e.target.value)}
                     required
-                    className="w-full p-2.5 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                    className="w-full p-2.5 border border-border rounded-lg font-medium text-foreground bg-[var(--kd-surface)]"
                   >
                     {branches.map(b => (
                       <option key={b.id} value={b.id}>{b.name}</option>
@@ -609,12 +622,12 @@ export default function PurchasesPage() {
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Supplier Distributor *</label>
+                  <label className="block font-medium text-foreground mb-1">Supplier Distributor *</label>
                   <select
                     value={selectedSupplierId}
                     onChange={(e) => setSelectedSupplierId(e.target.value)}
                     required
-                    className="w-full p-2.5 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                    className="w-full p-2.5 border border-border rounded-lg font-medium text-foreground bg-[var(--kd-surface)]"
                   >
                     {suppliers.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -625,18 +638,18 @@ export default function PurchasesPage() {
 
               {/* Add / Edit Line Items */}
               <div className="space-y-3">
-                <div className="font-semibold text-slate-900 text-sm flex items-center justify-between">
+                <div className="font-semibold text-foreground text-sm flex items-center justify-between">
                   <span className="flex items-center space-x-1">
-                    <Package className="h-4 w-4 text-emerald-600" />
+                    <Package className="h-4 w-4 text-primary" />
                     <span>Purchase Order Line Items</span>
                   </span>
-                  <span className="text-xs text-slate-500 font-normal">{items.length} line item(s)</span>
+                  <span className="text-xs text-muted-foreground font-normal">{items.length} line item(s)</span>
                 </div>
 
                 {/* Line Items Table with horizontal overflow handling */}
-                <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white shadow-2xs">
+                <div className="border border-border rounded-xl overflow-x-auto bg-[var(--kd-surface)] shadow-2xs">
                   <table className="w-full text-left text-xs min-w-[700px]">
-                    <thead className="bg-slate-100 text-slate-700 font-medium border-b border-slate-200">
+                    <thead className="bg-background text-foreground font-medium border-b border-border">
                       <tr>
                         <th className="p-2.5 min-w-[180px]">Product Name</th>
                         <th className="p-2.5 w-28">Batch #</th>
@@ -648,14 +661,14 @@ export default function PurchasesPage() {
                         <th className="p-2.5 w-12 text-center">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-border">
                       {items.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50">
+                        <tr key={idx} className="hover:bg-[var(--kd-primary-soft)]">
                           <td className="p-2">
                             <select
                               value={item.product_id}
                               onChange={(e) => handleItemFieldChange(idx, 'product_id', e.target.value)}
-                              className="w-full p-1.5 border border-slate-300 rounded text-xs bg-white font-medium"
+                              className="w-full p-1.5 border border-border rounded text-xs bg-[var(--kd-surface)] font-medium"
                             >
                               {products.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -670,7 +683,7 @@ export default function PurchasesPage() {
                               onChange={(e) => handleItemFieldChange(idx, 'batch_number', e.target.value.toUpperCase())}
                               placeholder="Batch #"
                               required
-                              className="w-full p-1.5 border border-slate-300 rounded font-mono font-semibold uppercase text-xs"
+                              className="w-full p-1.5 border border-border rounded font-mono font-semibold uppercase text-xs"
                             />
                           </td>
 
@@ -680,7 +693,7 @@ export default function PurchasesPage() {
                               value={item.expiry_date}
                               onChange={(e) => handleItemFieldChange(idx, 'expiry_date', e.target.value)}
                               required
-                              className="w-full p-1.5 border border-slate-300 rounded text-xs font-normal"
+                              className="w-full p-1.5 border border-border rounded text-xs font-normal"
                             />
                           </td>
 
@@ -691,7 +704,7 @@ export default function PurchasesPage() {
                               value={item.quantity_ordered}
                               onChange={(e) => handleItemFieldChange(idx, 'quantity_ordered', parseInt(e.target.value) || 0)}
                               required
-                              className="w-full p-1.5 border border-slate-300 rounded font-semibold text-center text-xs"
+                              className="w-full p-1.5 border border-border rounded font-semibold text-center text-xs"
                             />
                           </td>
 
@@ -702,7 +715,7 @@ export default function PurchasesPage() {
                               value={item.cost_price}
                               onChange={(e) => handleItemFieldChange(idx, 'cost_price', parseFloat(e.target.value) || 0)}
                               required
-                              className="w-full p-1.5 border border-slate-300 rounded font-mono text-right text-xs"
+                              className="w-full p-1.5 border border-border rounded font-mono text-right text-xs"
                             />
                           </td>
 
@@ -713,11 +726,11 @@ export default function PurchasesPage() {
                               value={item.sale_price}
                               onChange={(e) => handleItemFieldChange(idx, 'sale_price', parseFloat(e.target.value) || 0)}
                               required
-                              className="w-full p-1.5 border border-slate-300 rounded font-mono text-right text-xs"
+                              className="w-full p-1.5 border border-border rounded font-mono text-right text-xs"
                             />
                           </td>
 
-                          <td className="p-2 text-right font-mono font-semibold text-emerald-800">
+                          <td className="p-2 text-right font-mono font-semibold text-primary">
                             Rs. {(item.quantity_ordered * item.cost_price).toLocaleString()}
                           </td>
 
@@ -725,7 +738,7 @@ export default function PurchasesPage() {
                             <button
                               type="button"
                               onClick={() => handleRemoveItemLine(idx)}
-                              className="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                              className="text-danger hover:text-rose-800 font-semibold p-1 hover:bg-[color-mix(in_srgb,var(--kd-danger)_12%,transparent)] rounded transition-colors cursor-pointer"
                               title="Remove Line Item"
                             >
                               <X className="h-4 w-4" />
@@ -738,20 +751,20 @@ export default function PurchasesPage() {
                 </div>
 
                 {/* Add New Line Item Quick Bar */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                  <span className="font-semibold text-slate-800 text-xs flex items-center gap-1">
-                    <Plus className="h-4 w-4 text-emerald-700" />
+                <div className="bg-background p-4 rounded-xl border border-border space-y-3">
+                  <span className="font-semibold text-foreground text-xs flex items-center gap-1">
+                    <Plus className="h-4 w-4 text-primary" />
                     <span>Quick Add Another Product Line</span>
                   </span>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                     <div className="sm:col-span-4">
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-[11px] font-medium text-slate-600">Select Product</label>
+                        <label className="block text-[11px] font-medium text-muted-foreground">Select Product</label>
                         <button
                           type="button"
                           onClick={() => openQuickAddProductModal('quick_bar')}
-                          className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-0.5 cursor-pointer"
+                          className="text-[10px] font-semibold text-primary hover:text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
                         >
                           <Plus className="h-3 w-3" />
                           <span>New Product</span>
@@ -760,7 +773,7 @@ export default function PurchasesPage() {
                       <select
                         value={curProductId}
                         onChange={(e) => setCurProductId(e.target.value)}
-                        className="w-full p-2 border border-slate-300 rounded-lg bg-white font-medium text-xs"
+                        className="w-full p-2 border border-border rounded-lg bg-[var(--kd-surface)] font-medium text-xs"
                       >
                         {products.map(p => (
                           <option key={p.id} value={p.id}>{p.name}</option>
@@ -769,45 +782,45 @@ export default function PurchasesPage() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-medium text-slate-600 mb-1">Batch #</label>
+                      <label className="block text-[11px] font-medium text-muted-foreground mb-1">Batch #</label>
                       <input
                         type="text"
                         placeholder="e.g. BAT-99"
                         value={curBatchNumber}
                         onChange={(e) => setCurBatchNumber(e.target.value)}
-                        className="w-full p-2 border border-slate-300 rounded-lg font-mono uppercase font-semibold text-xs"
+                        className="w-full p-2 border border-border rounded-lg font-mono uppercase font-semibold text-xs"
                       />
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-medium text-slate-600 mb-1">Expiry Date</label>
+                      <label className="block text-[11px] font-medium text-muted-foreground mb-1">Expiry Date</label>
                       <input
                         type="date"
                         value={curExpiryDate}
                         onChange={(e) => setCurExpiryDate(e.target.value)}
-                        className="w-full p-2 border border-slate-300 rounded-lg text-xs font-normal"
+                        className="w-full p-2 border border-border rounded-lg text-xs font-normal"
                       />
                     </div>
 
                     <div className="sm:col-span-1">
-                      <label className="block text-[11px] font-medium text-slate-600 mb-1">Qty</label>
+                      <label className="block text-[11px] font-medium text-muted-foreground mb-1">Qty</label>
                       <input
                         type="number"
                         placeholder="Qty"
                         value={curQuantity}
                         onChange={(e) => setCurQuantity(parseInt(e.target.value) || 0)}
-                        className="w-full p-2 border border-slate-300 rounded-lg font-semibold text-xs"
+                        className="w-full p-2 border border-border rounded-lg font-semibold text-xs"
                       />
                     </div>
 
                     <div className="sm:col-span-1">
-                      <label className="block text-[11px] font-medium text-slate-600 mb-1">Cost</label>
+                      <label className="block text-[11px] font-medium text-muted-foreground mb-1">Cost</label>
                       <input
                         type="number"
                         placeholder="Cost"
                         value={curCostPrice}
                         onChange={(e) => setCurCostPrice(parseFloat(e.target.value) || 0)}
-                        className="w-full p-2 border border-slate-300 rounded-lg font-mono font-semibold text-xs"
+                        className="w-full p-2 border border-border rounded-lg font-mono font-semibold text-xs"
                       />
                     </div>
 
@@ -815,7 +828,7 @@ export default function PurchasesPage() {
                       <button
                         type="button"
                         onClick={handleAddItemLine}
-                        className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2 rounded-lg shadow-sm flex items-center justify-center space-x-1 transition-colors cursor-pointer text-xs"
+                        className="w-full bg-primary text-primary-foreground hover:opacity-90 text-white font-semibold py-2 rounded-lg shadow-[var(--kd-shadow)] flex items-center justify-center space-x-1 transition-colors cursor-pointer text-xs"
                       >
                         <Plus className="h-4 w-4" />
                         <span>Add Line Item</span>
@@ -825,27 +838,27 @@ export default function PurchasesPage() {
                 </div>
 
                 {/* Live Order Total Box */}
-                <div className="bg-emerald-50 border border-emerald-200 text-slate-900 p-3.5 rounded-xl flex items-center justify-between shadow-2xs">
-                  <span className="font-medium text-slate-700 text-xs">Total Purchase Order Value:</span>
-                  <span className="text-lg font-semibold font-mono text-emerald-800">
+                <div className="bg-[var(--kd-primary-soft)] border border-primary/20 text-foreground p-3.5 rounded-xl flex items-center justify-between shadow-2xs">
+                  <span className="font-medium text-foreground text-xs">Total Purchase Order Value:</span>
+                  <span className="text-lg font-semibold font-mono text-primary">
                     Rs. {calculateTotalCost().toLocaleString()}
                   </span>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-4 border-t border-slate-200 flex justify-end space-x-3 shrink-0">
+              <div className="pt-4 border-t border-border flex justify-end space-x-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2.5 bg-background hover:bg-[var(--kd-primary-soft)] text-foreground rounded-xl font-semibold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={items.length === 0}
-                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1.5"
+                  className="px-5 py-2.5 bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 text-white font-semibold rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1.5"
                 >
                   <Check className="h-4 w-4 stroke-[3]" />
                   <span>{editingPurchase ? 'Update Purchase Order' : 'Save & Update Stock'}</span>
@@ -860,39 +873,39 @@ export default function PurchasesPage() {
       {deletingPurchase && (() => {
         const check = getDeletionCheck(deletingPurchase);
         return (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-rose-200 animate-in fade-in zoom-in duration-200">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-rose-600" />
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-2xl max-w-md w-full p-6 space-y-4 border border-rose-200 animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center border-b border-border pb-3">
+                <h2 className="text-base font-semibold text-foreground flex items-center space-x-2">
+                  <AlertTriangle className="h-5 w-5 text-danger" />
                   <span>Confirm Delete Purchase Order</span>
                 </h2>
                 <button
                   type="button"
                   onClick={() => setDeletingPurchase(null)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-[var(--kd-primary-soft)] transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <div className="font-semibold text-slate-900 text-sm">
+                <div className="p-3.5 bg-background rounded-xl border border-border space-y-1">
+                  <div className="font-semibold text-foreground text-sm">
                     {deletingPurchase.purchase_number}
                   </div>
-                  <div className="text-slate-600 font-normal">
-                    Supplier: <strong className="font-semibold">{deletingPurchase.supplier_name}</strong> | Amount: <strong className="text-emerald-800 font-semibold">Rs. {deletingPurchase.total_amount.toLocaleString()}</strong>
+                  <div className="text-muted-foreground font-normal">
+                    Supplier: <strong className="font-semibold">{deletingPurchase.supplier_name}</strong> | Amount: <strong className="text-primary font-semibold">Rs. {deletingPurchase.total_amount.toLocaleString()}</strong>
                   </div>
                 </div>
 
                 {!check.canDelete ? (
-                  <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl space-y-2 text-rose-900">
+                  <div className="p-3.5 bg-[color-mix(in_srgb,var(--kd-danger)_12%,transparent)] border border-rose-300 rounded-xl space-y-2 text-rose-900">
                     <div className="font-semibold flex items-center gap-1.5 text-rose-800">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>Deletion Blocked (Stock Already Sold)</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-rose-700 font-normal">
+                    <p className="text-[11px] leading-relaxed text-danger font-normal">
                       Cannot delete PO <strong>{deletingPurchase.purchase_number}</strong> because <strong>{check.soldQty} units</strong> of <strong>{check.productName}</strong> (Batch: {check.batchNumber}) have already been sold in customer sales orders.
                     </p>
                     <p className="text-[11px] italic font-semibold text-rose-800">
@@ -900,7 +913,7 @@ export default function PurchasesPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 space-y-1 text-[11px]">
+                  <div className="p-3.5 bg-[var(--kd-accent-soft)] border border-accent/30 rounded-xl text-accent space-y-1 text-[11px]">
                     <div className="font-semibold flex items-center gap-1">
                       <AlertTriangle className="h-4 w-4 text-amber-700" />
                       <span>Reversal Warning</span>
@@ -912,11 +925,11 @@ export default function PurchasesPage() {
                 )}
               </div>
 
-              <div className="flex items-center space-x-3 pt-3 border-t border-slate-100 text-xs">
+              <div className="flex items-center space-x-3 pt-3 border-t border-border text-xs">
                 <button
                   type="button"
                   onClick={() => setDeletingPurchase(null)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                  className="flex-1 bg-background hover:bg-[var(--kd-primary-soft)] text-foreground font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -924,7 +937,7 @@ export default function PurchasesPage() {
                   type="button"
                   disabled={!check.canDelete}
                   onClick={handleConfirmDelete}
-                  className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer flex items-center justify-center space-x-1"
+                  className="flex-1 bg-danger hover:bg-rose-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-[var(--kd-shadow)] transition-colors cursor-pointer flex items-center justify-center space-x-1"
                 >
                   <Trash2 className="h-4 w-4" />
                   <span>Yes, Delete PO</span>
@@ -936,17 +949,17 @@ export default function PurchasesPage() {
       })()}
       {/* Quick-Add Product Modal inside PO Screen */}
       {showQuickAddProduct && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-emerald-200 animate-in fade-in zoom-in duration-150">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-2xl max-w-md w-full p-6 space-y-4 border border-primary/20 animate-in fade-in zoom-in duration-150">
+            <div className="flex justify-between items-center border-b border-border pb-3">
               <div className="flex items-center space-x-2">
-                <Package className="h-5 w-5 text-emerald-700" />
-                <h3 className="text-base font-semibold text-slate-900">Quick Add Product to Catalog</h3>
+                <Package className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-semibold text-foreground">Quick Add Product to Catalog</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowQuickAddProduct(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-[var(--kd-primary-soft)] transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -954,37 +967,37 @@ export default function PurchasesPage() {
 
             <form onSubmit={handleSaveQuickProduct} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Product Name *</label>
+                <label className="block font-medium text-foreground mb-1">Product Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Belt Expert 480 SC"
                   value={quickProductForm.name}
                   onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-normal"
+                  className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none font-normal"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Chemical Active Ingredient *</label>
+                <label className="block font-medium text-foreground mb-1">Chemical Active Ingredient *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Flubendiamide + Thiacloprid"
                   value={quickProductForm.active_ingredient}
                   onChange={(e) => setQuickProductForm({ ...quickProductForm, active_ingredient: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-normal"
+                  className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none font-normal"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Company Brand *</label>
+                <label className="block font-medium text-foreground mb-1">Company Brand *</label>
                 <select
                   value={quickProductForm.company_id}
                   onChange={(e) => setQuickProductForm({ ...quickProductForm, company_id: e.target.value })}
                   required
-                  className="w-full p-2.5 border border-slate-300 rounded-lg bg-white font-medium"
+                  className="w-full p-2.5 border border-border rounded-lg bg-[var(--kd-surface)] font-medium"
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -996,11 +1009,11 @@ export default function PurchasesPage() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Formulation</label>
+                  <label className="block font-medium text-foreground mb-1">Formulation</label>
                   <select
                     value={quickProductForm.formulation_type}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, formulation_type: e.target.value as FormulationType })}
-                    className="w-full p-2 border border-slate-300 rounded-lg bg-white font-medium"
+                    className="w-full p-2 border border-border rounded-lg bg-[var(--kd-surface)] font-medium"
                   >
                     {['EC', 'WP', 'SL', 'SC', 'granules', 'powder', 'other'].map((f) => (
                       <option key={f} value={f}>{f}</option>
@@ -1009,22 +1022,22 @@ export default function PurchasesPage() {
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Pack Size</label>
+                  <label className="block font-medium text-foreground mb-1">Pack Size</label>
                   <input
                     type="number"
                     step="any"
                     value={quickProductForm.pack_size}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, pack_size: e.target.value })}
-                    className="w-full p-2 border border-slate-300 rounded-lg font-semibold"
+                    className="w-full p-2 border border-border rounded-lg font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Unit</label>
+                  <label className="block font-medium text-foreground mb-1">Unit</label>
                   <select
                     value={quickProductForm.pack_unit}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, pack_unit: e.target.value as PackUnit })}
-                    className="w-full p-2 border border-slate-300 rounded-lg bg-white font-medium"
+                    className="w-full p-2 border border-border rounded-lg bg-[var(--kd-surface)] font-medium"
                   >
                     {['ml', 'L', 'g', 'kg'].map((u) => (
                       <option key={u} value={u}>{u}</option>
@@ -1033,18 +1046,18 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center space-x-3 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowQuickAddProduct(false)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                  className="flex-1 bg-background hover:bg-[var(--kd-primary-soft)] text-foreground font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!quickProductForm.name.trim() || !quickProductForm.active_ingredient.trim()}
-                  className="flex-1 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1"
+                  className="flex-1 bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1"
                 >
                   <Check className="h-4 w-4 stroke-[3]" />
                   <span>Save to Catalog</span>

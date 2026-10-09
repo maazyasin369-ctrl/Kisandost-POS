@@ -13,20 +13,18 @@ import {
   ArrowRight,
   BarChart3
 } from 'lucide-react';
-
-import { createAdminClient } from '@/lib/supabase/admin';
+import { ShopStats } from '@/components/dashboard/ShopStats';
 
 export default async function ReportsHubPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const admin = createAdminClient();
-  const { data: profile } = await admin
+  const { data: profile } = await supabase
     .from('profiles')
     .select('tenant_id')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) redirect('/login');
 
@@ -42,8 +40,8 @@ export default async function ReportsHubPage() {
       href: '/reports/daily',
       icon: Calendar,
       badge: 'Daily',
-      color: 'bg-emerald-600',
-      lightBg: 'bg-emerald-50 border-emerald-200 text-emerald-800'
+      color: 'bg-primary',
+      lightBg: 'bg-[var(--kd-primary-soft)] border-primary/20 text-primary'
     },
     {
       title: 'Monthly & Company Breakdown',
@@ -51,8 +49,8 @@ export default async function ReportsHubPage() {
       href: '/reports/monthly',
       icon: TrendingUp,
       badge: 'Monthly',
-      color: 'bg-indigo-600',
-      lightBg: 'bg-indigo-50 border-indigo-200 text-indigo-800'
+      color: 'bg-accent',
+      lightBg: 'bg-[var(--kd-accent-soft)] border-accent/20 text-accent'
     },
     {
       title: 'Day-End Cash Closing',
@@ -60,8 +58,8 @@ export default async function ReportsHubPage() {
       href: '/reports/day-closing',
       icon: Landmark,
       badge: 'Register',
-      color: 'bg-amber-600',
-      lightBg: 'bg-amber-50 border-amber-200 text-amber-800'
+      color: 'bg-primary',
+      lightBg: 'bg-[var(--kd-primary-soft)] border-primary/20 text-primary'
     },
     {
       title: 'Sales History & Thermal Receipts',
@@ -69,23 +67,23 @@ export default async function ReportsHubPage() {
       href: '/reports/sales-history',
       icon: History,
       badge: 'Audit',
-      color: 'bg-cyan-600',
-      lightBg: 'bg-cyan-50 border-cyan-200 text-cyan-800'
+      color: 'bg-accent',
+      lightBg: 'bg-[var(--kd-accent-soft)] border-accent/20 text-accent'
     }
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-[var(--kd-surface)] p-6 rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center space-x-2.5">
-            <div className="p-2 bg-slate-950 rounded-xl text-yellow-400">
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight flex items-center space-x-2.5">
+            <div className="p-2 bg-foreground rounded-xl text-primary">
               <FileSpreadsheet className="h-5 w-5" />
             </div>
             <span>Reports & Business Analytics Portal</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
             Access daily counter summaries, company sales distributions, cash drawer reconciliation, and historic registers.
           </p>
         </div>
@@ -93,7 +91,7 @@ export default async function ReportsHubPage() {
         <div className="flex items-center space-x-3">
           <Link
             href="/pos"
-            className="bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-colors"
+            className="bg-primary text-primary-foreground hover:opacity-90 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-[var(--kd-shadow)] transition-colors"
           >
             <BarChart3 className="h-4 w-4" />
             <span>Go to POS</span>
@@ -102,20 +100,13 @@ export default async function ReportsHubPage() {
       </div>
 
       {/* Summary KPI Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <span className="text-xs text-slate-500 font-medium">This Month's Revenue</span>
-          <p className="text-xl font-bold text-slate-900 mt-1">Rs. {grandTotalSales.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <span className="text-xs text-slate-500 font-medium">Today's Cash Collected</span>
-          <p className="text-xl font-bold text-emerald-600 mt-1">Rs. {cashSales.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <span className="text-xs text-slate-500 font-medium">Outstanding Udhaar Credit</span>
-          <p className="text-xl font-bold text-amber-600 mt-1">Rs. {creditSales.toLocaleString()}</p>
-        </div>
-      </div>
+      <ShopStats
+        items={[
+          { icon: 'trend', label: 'This month', value: `Rs. ${grandTotalSales.toLocaleString()}`, hint: 'Completed sales', spark: [cashSales, creditSales, grandTotalSales] },
+          { icon: 'cash', label: "Today's cash", value: `Rs. ${cashSales.toLocaleString()}`, hint: 'Collected at the counter', spark: [cashSales, cashSales] },
+          { icon: 'udhaar', tone: 'accent', label: 'Outstanding udhaar', value: `Rs. ${creditSales.toLocaleString()}`, hint: 'Still owed', spark: [creditSales, creditSales] },
+        ]}
+      />
 
       {/* Report Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -125,27 +116,27 @@ export default async function ReportsHubPage() {
             <Link
               key={card.href}
               href={card.href}
-              className="group bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-emerald-500 transition-all flex flex-col justify-between"
+              className="group bg-[var(--kd-surface)] p-6 rounded-xl shadow-[var(--kd-shadow)] border border-border hover:shadow-md hover:border-primary transition-all flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-lg text-white ${card.color} shadow-sm`}>
+                  <div className={`p-3 rounded-lg text-white ${card.color} shadow-[var(--kd-shadow)]`}>
                     <Icon className="h-6 w-6" />
                   </div>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${card.lightBg}`}>
                     {card.badge}
                   </span>
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1">
+                <h2 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-1">
                   <span>{card.title}</span>
                   <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed">
                   {card.description}
                 </p>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:translate-x-1 transition-transform">
+              <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs font-bold text-primary group-hover:translate-x-1 transition-transform">
                 <span>View Full Details</span>
                 <ArrowRight className="h-4 w-4" />
               </div>

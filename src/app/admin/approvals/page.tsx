@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import AdminShell from '@/components/layout/AdminShell';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   CheckCircle2,
   XCircle,
@@ -21,6 +23,8 @@ import { getPendingRequests, approveRequest, rejectRequest } from '@/actions/adm
 import { dataStore } from '@/lib/data-store';
 import { PendingRegistration } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
+import { usePagination } from '@/hooks/usePagination';
+import Pagination from '@/components/ui/Pagination';
 
 type PendingRequestData = Awaited<ReturnType<typeof getPendingRequests>>;
 
@@ -99,266 +103,160 @@ export default function SuperAdminApprovalsPage() {
   const pendingSelfRegsCount = pendingRegistrations.filter(r => r.status === 'pending').length;
   const pendingStructCount = structuralRequests.filter(r => r.status === 'pending').length;
   const totalPending = pendingSelfRegsCount + pendingStructCount;
+  const regsPagination = usePagination(pendingRegistrations, 10);
+  const structPagination = usePagination(structuralRequests, 10);
 
   return (
     <AdminShell>
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-2xs font-medium text-slate-400 mb-1">
-              <span>Super Admin</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-semibold">Pending Approvals Queue</span>
-            </nav>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Pending Approvals Queue</span>
-              {totalPending > 0 && (
-                <span className="bg-amber-400 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full">
-                  {totalPending} PENDING
-                </span>
-              )}
-            </h1>
-            <p className="text-xs text-slate-500 font-normal mt-1">
-              Review and approve/reject self-signup shop registrations and structural tenant requests.
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          crumbs={[{ label: 'Super Admin' }, { label: 'Approvals' }]}
+          title="Pending approvals"
+          description={`${totalPending} request${totalPending === 1 ? '' : 's'} waiting for review.`}
+        />
 
-        {/* Section 1: Self-Signup Shop Registrations */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-amber-600" />
-              <span>Self-Signup Shop Registrations ({pendingRegistrations.length})</span>
-            </h2>
-            <span className="text-xs font-medium text-slate-500">
-              {pendingSelfRegsCount} awaiting review
-            </span>
+        <section className="overflow-hidden rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] shadow-[var(--kd-shadow)]">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="text-base font-semibold tracking-tight">Shop registrations</h2>
+            <span className="text-xs text-muted-foreground">{pendingSelfRegsCount} awaiting review</span>
           </div>
 
           {loading ? (
-            <div className="bg-white p-8 rounded-xl text-center text-slate-400 text-xs">
-              Loading pending registrations...
-            </div>
+            <div className="h-28 animate-pulse bg-[var(--kd-primary-soft)]" />
           ) : pendingRegistrations.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-2">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-              <h3 className="text-sm font-semibold text-slate-900">No Pending Shop Registrations</h3>
-              <p className="text-xs text-slate-500 font-normal">
-                When new shop owners register via the signup link, their verification requests will appear here.
-              </p>
-            </div>
+            <p className="px-5 py-10 text-center text-sm text-muted-foreground">No pending shop registrations.</p>
           ) : (
-            <div className="space-y-4">
-              {pendingRegistrations.map((reg) => {
-                const isPending = reg.status === 'pending';
-                const isApproved = reg.status === 'approved';
-                const isRejected = reg.status === 'rejected';
-
+            <>
+            <ul>
+              {regsPagination.pageItems.map((reg) => {
+                const isPending = reg.status === 'pending'
                 return (
-                  <div key={reg.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <li key={reg.id} className="border-b border-border px-5 py-4 last:border-0">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-2xs font-bold uppercase px-2.5 py-0.5 rounded-full border ${
-                            isPending ? 'bg-amber-100 text-amber-900 border-amber-300' :
-                            isApproved ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-red-100 text-red-900 border-red-300'
-                          }`}>
-                            REGISTRATION STATUS: {reg.status.toUpperCase()}
-                          </span>
-                          <span className="text-2xs font-mono text-slate-400">ID: {reg.id}</span>
+                        <div className="mb-1 flex items-center gap-2">
+                          <StatusBadge status={reg.status} />
+                          <span className="text-xs text-muted-foreground">{new Date(reg.created_at).toLocaleString()}</span>
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900 mt-1.5">
-                          {reg.business_name}
-                        </h3>
-                        <p className="text-xs text-slate-600 font-medium mt-0.5">
-                          Owner: <strong className="text-slate-900">{reg.full_name}</strong> | City: <strong className="text-slate-900">{reg.city}</strong>
-                        </p>
-                      </div>
-
-                      <div className="text-2xs text-slate-500 font-mono font-medium">
-                        Submitted: {new Date(reg.created_at).toLocaleString()}
+                        <h3 className="text-base font-semibold text-foreground">{reg.business_name}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{reg.full_name} · {reg.city}</p>
                       </div>
                     </div>
-
-                    {/* Registration Details Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
-                      <div>
-                        <span className="text-2xs uppercase text-slate-400 font-bold block">Username Handle</span>
-                        <strong className="font-mono text-amber-700 font-bold">@{reg.username}</strong>
-                      </div>
-                      <div>
-                        <span className="text-2xs uppercase text-slate-400 font-bold block">Phone Number</span>
-                        <strong className="font-mono text-slate-900">{reg.phone}</strong>
-                      </div>
-                      <div>
-                        <span className="text-2xs uppercase text-slate-400 font-bold block">Email Address</span>
-                        <strong className="font-mono text-slate-900">{reg.email || 'None provided'}</strong>
-                      </div>
-                      <div>
-                        <span className="text-2xs uppercase text-slate-400 font-bold block">Shop City / Location</span>
-                        <strong className="text-slate-900">{reg.city}</strong>
-                      </div>
-                    </div>
-
+                    <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                      <div><dt className="text-xs text-muted-foreground">Username</dt><dd className="font-medium">@{reg.username}</dd></div>
+                      <div><dt className="text-xs text-muted-foreground">Phone</dt><dd className="font-medium">{reg.phone}</dd></div>
+                      <div><dt className="text-xs text-muted-foreground">Email</dt><dd className="font-medium">{reg.email || 'None'}</dd></div>
+                      <div><dt className="text-xs text-muted-foreground">City</dt><dd className="font-medium">{reg.city}</dd></div>
+                    </dl>
                     {isPending && (
-                      <div className="flex items-center gap-3 pt-2">
-                        <button
-                          onClick={() => handleApproveRegistration(reg.id)}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>APPROVE &amp; ACTIVATE SHOP</span>
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                        <button type="button" onClick={() => handleApproveRegistration(reg.id)} className="rounded-[var(--kd-radius)] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
+                          Approve
                         </button>
-
                         {rejectingId === reg.id ? (
-                          <div className="flex-1 space-y-2">
+                          <div className="flex flex-1 flex-col gap-2">
                             <input
                               type="text"
-                              placeholder="Reason for rejection (e.g. invalid phone/address)..."
+                              placeholder="Reason for rejection"
                               value={rejectNote[reg.id] || ''}
                               onChange={(e) => setRejectNote({ ...rejectNote, [reg.id]: e.target.value })}
-                              className="w-full text-xs font-normal p-2 border border-red-300 rounded-lg focus:outline-none"
+                              className="rounded-[var(--kd-radius)] border border-border bg-background px-3 py-2 text-sm outline-none"
                             />
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRejectRegistration(reg.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                              >
-                                Confirm Reject
-                              </button>
-                              <button
-                                onClick={() => setRejectingId(null)}
-                                className="bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                              >
-                                Cancel
-                              </button>
+                              <button type="button" onClick={() => handleRejectRegistration(reg.id)} className="rounded-[var(--kd-radius)] bg-danger px-3 py-2 text-sm font-medium text-white">Confirm reject</button>
+                              <button type="button" onClick={() => setRejectingId(null)} className="rounded-[var(--kd-radius)] border border-border px-3 py-2 text-sm">Cancel</button>
                             </div>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setRejectingId(reg.id)}
-                            className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 border border-red-200 transition-all cursor-pointer"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            <span>REJECT REGISTRATION</span>
+                          <button type="button" onClick={() => setRejectingId(reg.id)} className="rounded-[var(--kd-radius)] border border-border px-3 py-2 text-sm font-medium text-danger">
+                            Reject
                           </button>
                         )}
                       </div>
                     )}
-
-                    {reg.review_note && (
-                      <p className="text-2xs text-red-700 font-semibold bg-red-50 p-2.5 rounded-xl border border-red-200">
-                        Rejection Note: {reg.review_note}
-                      </p>
-                    )}
-                  </div>
-                );
+                    {reg.review_note && <p className="mt-3 text-sm text-danger">Note: {reg.review_note}</p>}
+                  </li>
+                )
               })}
-            </div>
+            </ul>
+            <Pagination
+              page={regsPagination.page}
+              totalPages={regsPagination.totalPages}
+              totalItems={regsPagination.totalItems}
+              from={regsPagination.from}
+              to={regsPagination.to}
+              pageSize={regsPagination.pageSize}
+              onPageChange={regsPagination.setPage}
+              onPageSizeChange={regsPagination.setPageSize}
+            />
+            </>
           )}
-        </div>
+        </section>
 
-        {/* Section 2: Structural Requests */}
         {structuralRequests.length > 0 && (
-          <div className="space-y-4 pt-6 border-t border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
-                <span>Structural Module &amp; Staff Requests ({structuralRequests.length})</span>
-              </h2>
+          <section className="overflow-hidden rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] shadow-[var(--kd-shadow)]">
+            <div className="border-b border-border px-5 py-4">
+              <h2 className="text-base font-semibold tracking-tight">Module and staff requests</h2>
             </div>
-
-            <div className="space-y-4">
-              {structuralRequests.map((r) => {
-                const tenantObj = Array.isArray(r.tenants) ? r.tenants[0] : r.tenants;
-                const profileObj = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+            <ul>
+              {structPagination.pageItems.map((r) => {
+                const tenantObj = Array.isArray(r.tenants) ? r.tenants[0] : r.tenants
+                const profileObj = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
                 return (
-                  <div key={r.id} className="bg-white rounded-2xl shadow-card border border-slate-200 p-5 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                      <div>
-                        <span className={`text-2xs font-semibold uppercase px-2.5 py-0.5 rounded-full ${
-                          r.status === 'pending' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                          r.status === 'approved' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-red-100 text-red-900 border border-red-300'
-                        }`}>
-                          STATUS: {r.status.toUpperCase()}
-                        </span>
-                        <h3 className="text-base font-semibold text-slate-900 mt-1.5 flex items-center gap-2">
-                          <span>Request Type: {r.request_type.replace('_', ' ').toUpperCase()}</span>
-                        </h3>
-                        <p className="text-xs text-slate-600 font-normal mt-0.5">
-                          Shop: <strong className="text-slate-900 font-semibold">{tenantObj?.business_name}</strong> ({tenantObj?.city}) | Requested by: {profileObj?.full_name ?? 'Owner'}
-                        </p>
-                      </div>
-                      <div className="text-2xs text-slate-500 font-mono font-medium">
-                        {new Date(r.created_at).toLocaleString()}
-                      </div>
+                  <li key={r.id} className="border-b border-border px-5 py-4 last:border-0">
+                    <div className="mb-1 flex items-center gap-2">
+                      <StatusBadge status={r.status} />
+                      <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
                     </div>
-
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 space-y-1">
-                      <span className="text-2xs font-medium text-slate-500 uppercase block font-sans">Request Payload Details:</span>
-                      <pre className="text-2xs overflow-x-auto font-medium">{JSON.stringify(r.request_details, null, 2)}</pre>
-                    </div>
-
+                    <h3 className="text-sm font-semibold capitalize text-foreground">{r.request_type.replaceAll('_', ' ')}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {tenantObj?.business_name} · {tenantObj?.city} · {profileObj?.full_name ?? 'Owner'}
+                    </p>
+                    <pre className="mt-3 overflow-x-auto rounded-[var(--kd-radius)] bg-background p-3 text-xs text-foreground">{JSON.stringify(r.request_details, null, 2)}</pre>
                     {r.status === 'pending' && (
-                      <div className="flex items-center gap-3 pt-2">
-                        <button
-                          onClick={() => handleApproveStructural(r.id)}
-                          className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>APPROVE &amp; ACTIVATE CHANGE</span>
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                        <button type="button" onClick={() => handleApproveStructural(r.id)} className="rounded-[var(--kd-radius)] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
+                          Approve
                         </button>
-
                         {rejectingId === r.id ? (
-                          <div className="flex-1 space-y-2">
+                          <div className="flex flex-1 flex-col gap-2">
                             <input
                               type="text"
-                              placeholder="Reason for rejection..."
+                              placeholder="Reason for rejection"
                               value={rejectNote[r.id] || ''}
                               onChange={(e) => setRejectNote({ ...rejectNote, [r.id]: e.target.value })}
-                              className="w-full text-xs font-normal p-2 border border-red-300 rounded-lg focus:outline-none"
+                              className="rounded-[var(--kd-radius)] border border-border bg-background px-3 py-2 text-sm outline-none"
                             />
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRejectStructural(r.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                              >
-                                Confirm Reject
-                              </button>
-                              <button
-                                onClick={() => setRejectingId(null)}
-                                className="bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                              >
-                                Cancel
-                              </button>
+                              <button type="button" onClick={() => handleRejectStructural(r.id)} className="rounded-[var(--kd-radius)] bg-danger px-3 py-2 text-sm font-medium text-white">Confirm reject</button>
+                              <button type="button" onClick={() => setRejectingId(null)} className="rounded-[var(--kd-radius)] border border-border px-3 py-2 text-sm">Cancel</button>
                             </div>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setRejectingId(r.id)}
-                            className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-rose-200 transition-all cursor-pointer"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            <span>REJECT REQUEST</span>
+                          <button type="button" onClick={() => setRejectingId(r.id)} className="rounded-[var(--kd-radius)] border border-border px-3 py-2 text-sm font-medium text-danger">
+                            Reject
                           </button>
                         )}
                       </div>
                     )}
-
-                    {r.review_note && (
-                      <p className="text-2xs text-rose-700 font-semibold bg-rose-50 p-2.5 rounded-xl border border-rose-200">
-                        Rejection Note: {r.review_note}
-                      </p>
-                    )}
-                  </div>
-                );
+                    {r.review_note && <p className="mt-3 text-sm text-danger">Note: {r.review_note}</p>}
+                  </li>
+                )
               })}
-            </div>
-          </div>
+            </ul>
+            <Pagination
+              page={structPagination.page}
+              totalPages={structPagination.totalPages}
+              totalItems={structPagination.totalItems}
+              from={structPagination.from}
+              to={structPagination.to}
+              pageSize={structPagination.pageSize}
+              onPageChange={structPagination.setPage}
+              onPageSizeChange={structPagination.setPageSize}
+            />
+          </section>
         )}
       </div>
     </AdminShell>
-  );
+  )
 }

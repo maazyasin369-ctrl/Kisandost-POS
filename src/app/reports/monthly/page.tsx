@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useTransition } from 'react'
-import { getMonthlyReport } from '@/actions/reports'
+import { getMonthlyReport, getShopReportContext } from '@/actions/reports'
 import {
   TrendingUp, Building2, Download, BarChart3, Calendar,
   RefreshCw, ChevronLeft, ChevronRight
@@ -10,14 +10,16 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
+import { StatCard } from '@/components/admin/StatCard'
+import { usePagination } from '@/hooks/usePagination'
+import Pagination from '@/components/ui/Pagination'
 
 type MonthlyReportData = Awaited<ReturnType<typeof getMonthlyReport>>
-
-const DEMO_TENANT = '11111111-1111-1111-1111-111111111111'
+type ReportContext = NonNullable<Awaited<ReturnType<typeof getShopReportContext>>>
 
 const COMPANY_COLORS = [
-  '#059669', '#0284c7', '#d97706', '#7c3aed', '#db2777',
-  '#0d9488', '#ca8a04', '#4f46e5', '#16a34a', '#dc2626'
+  '#145c3a', '#2c4a86', '#b45309', '#0d9488', '#7c3aed',
+  '#db2777', '#ca8a04', '#4f46e5', '#15803d', '#b91c1c'
 ]
 
 const MONTH_NAMES = [
@@ -29,20 +31,30 @@ export default function MonthlyReportPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1) // 1-indexed
+  const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined)
+  const [ctx, setCtx] = useState<ReportContext | null>(null)
   const [report, setReport] = useState<MonthlyReportData | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const loadReport = (y: number, m: number) => {
+  useEffect(() => {
+    getShopReportContext().then((data) => {
+      if (data) setCtx(data)
+    })
+  }, [])
+
+  const loadReport = (y: number, m: number, branch?: string, tenantId?: string) => {
+    if (!tenantId) return
     startTransition(async () => {
-      const data = await getMonthlyReport(DEMO_TENANT, y, m)
+      const data = await getMonthlyReport(tenantId, y, m, branch)
       setReport(data)
     })
   }
 
   useEffect(() => {
-    loadReport(year, month)
+    if (!ctx) return
+    loadReport(year, month, ctx.multiBranch ? branchFilter : undefined, ctx.tenantId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month])
+  }, [year, month, branchFilter, ctx])
 
   const shiftMonth = (delta: number) => {
     let m = month + delta
@@ -77,19 +89,21 @@ export default function MonthlyReportPage() {
     value: c.revenue,
   }))
 
+  const companyPagination = usePagination(report?.companyBreakdown ?? [], 10)
+
   const totalRevenue = report?.totalRevenue ?? 0
 
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-[var(--kd-surface)] p-6 rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-slate-950 rounded-xl text-yellow-400">
+          <div className="p-2.5 bg-foreground rounded-xl text-primary">
             <TrendingUp className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Monthly Sales & Company Breakdown</h1>
-            <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            <h1 className="text-xl font-bold text-foreground tracking-tight">Monthly Sales & Company Breakdown</h1>
+            <p className="text-xs text-muted-foreground font-semibold mt-0.5">
               {monthLabel} — Company-wise revenue distribution and daily trend
             </p>
           </div>
@@ -97,19 +111,34 @@ export default function MonthlyReportPage() {
 
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-2 bg-slate-950 hover:bg-slate-900 text-white font-semibold text-xs px-4.5 py-2.5 rounded-full border border-slate-800 transition-all cursor-pointer shadow-xs active:scale-95"
+          className="flex items-center gap-2 bg-primary text-primary-foreground hover:opacity-90 font-semibold text-xs px-4.5 py-2.5 rounded-full border border-border transition-all cursor-pointer shadow-[var(--kd-shadow)] active:scale-95"
         >
-          <Download className="w-4 h-4 text-yellow-400" strokeWidth={2.2} />
+          <Download className="w-4 h-4 text-primary" strokeWidth={2.2} />
           <span>Export CSV</span>
         </button>
       </div>
 
       {/* Month Navigation */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
+      <div className="bg-[var(--kd-surface)] p-4 rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border flex flex-wrap items-center gap-4">
+        {ctx?.multiBranch && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-medium text-muted-foreground">Branch:</span>
+            <select
+              value={branchFilter ?? 'all'}
+              onChange={(e) => setBranchFilter(e.target.value === 'all' ? undefined : e.target.value)}
+              className="rounded-xl border border-border bg-background px-3 py-2 font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">All Branches</option>
+              {ctx.branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <button
             onClick={() => shiftMonth(-1)}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-background hover:bg-[var(--kd-primary-soft)] text-foreground border border-border transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -117,7 +146,7 @@ export default function MonthlyReportPage() {
             <select
               value={month}
               onChange={e => setMonth(Number(e.target.value))}
-              className="border border-slate-300 rounded-xl px-2 py-1.5 text-xs font-bold text-slate-900 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="border border-border rounded-xl px-2 py-1.5 text-xs font-bold text-foreground bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               {MONTH_NAMES.map((name, i) => (
                 <option key={i} value={i + 1}>{name}</option>
@@ -129,19 +158,19 @@ export default function MonthlyReportPage() {
               min={2020}
               max={now.getFullYear()}
               onChange={e => setYear(Number(e.target.value))}
-              className="border border-slate-300 rounded-xl px-2 py-1.5 text-xs font-bold text-slate-900 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none w-20"
+              className="border border-border rounded-xl px-2 py-1.5 text-xs font-bold text-foreground bg-background focus:ring-2 focus:ring-indigo-500 focus:outline-none w-20"
             />
           </div>
           <button
             onClick={() => shiftMonth(1)}
             disabled={isCurrentMonth}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer disabled:opacity-40"
+            className="p-2 rounded-xl bg-background hover:bg-[var(--kd-primary-soft)] text-foreground border border-border transition-colors cursor-pointer disabled:opacity-40"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()) }}
-            className="text-xs font-extrabold text-indigo-700 hover:underline px-2 py-1 cursor-pointer"
+            className="text-xs font-semibold text-indigo-700 hover:underline px-2 py-1 cursor-pointer"
           >
             This Month
           </button>
@@ -156,49 +185,21 @@ export default function MonthlyReportPage() {
       </div>
 
       {/* KPI Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-indigo-100 flex items-center justify-between">
-          <div>
-            <div className="text-2xs font-extrabold text-slate-400 uppercase tracking-wider">Monthly Revenue</div>
-            <div className="text-2xl font-semibold text-indigo-900 font-mono mt-1">Rs. {totalRevenue.toLocaleString()}</div>
-          </div>
-          <div className="p-3 bg-indigo-600 rounded-xl">
-            <TrendingUp className="w-5 h-5 text-white" />
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-          <div>
-            <div className="text-2xs font-extrabold text-slate-400 uppercase tracking-wider">Total Transactions</div>
-            <div className="text-2xl font-semibold text-slate-900 font-mono mt-1">{report?.transactionCount ?? 0}</div>
-          </div>
-          <div className="p-3 bg-emerald-600 rounded-xl">
-            <BarChart3 className="w-5 h-5 text-white" />
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-          <div>
-            <div className="text-2xs font-extrabold text-slate-400 uppercase tracking-wider">Avg Per Day</div>
-            <div className="text-2xl font-semibold text-slate-900 font-mono mt-1">
-              Rs. {report?.dailyData && report.dailyData.length > 0
-                ? Math.round(totalRevenue / report.dailyData.length).toLocaleString()
-                : '0'}
-            </div>
-          </div>
-          <div className="p-3 bg-amber-500 rounded-xl">
-            <Calendar className="w-5 h-5 text-white" />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard icon={TrendingUp} label="Monthly revenue" value={`Rs. ${totalRevenue.toLocaleString()}`} hint="Selected month" spark={report?.dailyData?.length ? report.dailyData.map((day) => day.revenue) : [0, totalRevenue]} />
+        <StatCard icon={BarChart3} tone="accent" label="Transactions" value={String(report?.transactionCount ?? 0)} hint="Completed sales" spark={[report?.transactionCount ?? 0, report?.transactionCount ?? 0]} />
+        <StatCard icon={Calendar} label="Average per day" value={`Rs. ${report?.dailyData && report.dailyData.length > 0 ? Math.round(totalRevenue / report.dailyData.length).toLocaleString() : '0'}`} hint="Days with sales" spark={report?.dailyData?.length ? report.dailyData.map((day) => day.revenue) : [0, 0]} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Daily Revenue Trend Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <h2 className="font-extrabold text-sm text-slate-900 mb-4 flex items-center gap-2">
+        <div className="lg:col-span-2 bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border p-5">
+          <h2 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-indigo-700" />
             Daily Revenue Trend — {monthLabel}
           </h2>
           {!report || report.dailyData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-slate-400 text-xs font-semibold">
+            <div className="h-48 flex items-center justify-center text-muted-foreground text-xs font-semibold">
               No sales data for {monthLabel}.
             </div>
           ) : (
@@ -218,13 +219,13 @@ export default function MonthlyReportPage() {
         </div>
 
         {/* Company Pie Chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <h2 className="font-extrabold text-sm text-slate-900 mb-4 flex items-center gap-2">
+        <div className="bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border p-5">
+          <h2 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4 text-indigo-700" />
             Company Distribution
           </h2>
           {pieData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-slate-400 text-xs font-semibold">
+            <div className="h-48 flex items-center justify-center text-muted-foreground text-xs font-semibold">
               No data available.
             </div>
           ) : (
@@ -255,51 +256,52 @@ export default function MonthlyReportPage() {
       </div>
 
       {/* Company Breakdown Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 bg-slate-100 border-b border-slate-200 text-slate-900">
-          <h2 className="font-extrabold text-sm flex items-center gap-2">
+      <div className="bg-[var(--kd-surface)] rounded-[var(--kd-radius)] shadow-[var(--kd-shadow)] border border-border overflow-hidden">
+        <div className="p-4 bg-background border-b border-border text-foreground">
+          <h2 className="font-semibold text-sm flex items-center gap-2">
             <Building2 className="w-4 h-4 text-indigo-600" />
             Company-wise Sales Breakdown — {monthLabel}
           </h2>
         </div>
 
         {!report || report.companyBreakdown.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+          <div className="py-12 text-center text-muted-foreground text-xs font-semibold">
             No company sales data for {monthLabel}.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-600 font-extrabold uppercase text-2xs border-b border-slate-200">
+                <tr className="bg-background text-muted-foreground font-semibold uppercase text-2xs border-b border-border">
                   <th className="p-3">Rank</th>
                   <th className="p-3">Company / Brand</th>
                   <th className="p-3 text-right">Revenue (Rs)</th>
                   <th className="p-3">Share</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold text-slate-900">
-                {report.companyBreakdown.map((c, i) => {
+              <tbody className="divide-y divide-border font-semibold text-foreground">
+                {companyPagination.pageItems.map((c, idx) => {
+                  const i = (companyPagination.page - 1) * companyPagination.pageSize + idx
                   const pct = totalRevenue > 0 ? Math.round((c.revenue / totalRevenue) * 100) : 0
                   return (
-                    <tr key={c.name} className="hover:bg-slate-50">
+                    <tr key={c.name} className="hover:bg-[var(--kd-primary-soft)]">
                       <td className="p-3">
                         <span className="w-6 h-6 rounded-full text-white font-semibold text-2xs flex items-center justify-center"
                           style={{ backgroundColor: COMPANY_COLORS[i % COMPANY_COLORS.length] }}>
                           {i + 1}
                         </span>
                       </td>
-                      <td className="p-3 font-extrabold text-slate-900">{c.name}</td>
-                      <td className="p-3 text-right font-mono font-extrabold text-indigo-900">Rs. {c.revenue.toLocaleString()}</td>
+                      <td className="p-3 font-semibold text-foreground">{c.name}</td>
+                      <td className="p-3 text-right font-mono font-semibold text-indigo-900">Rs. {c.revenue.toLocaleString()}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-100 rounded-full h-2 min-w-[60px]">
+                          <div className="flex-1 bg-background rounded-full h-2 min-w-[60px]">
                             <div
                               className="h-2 rounded-full transition-all"
                               style={{ width: `${pct}%`, backgroundColor: COMPANY_COLORS[i % COMPANY_COLORS.length] }}
                             />
                           </div>
-                          <span className="text-2xs font-semibold text-slate-600 w-10">{pct}%</span>
+                          <span className="text-2xs font-semibold text-muted-foreground w-10">{pct}%</span>
                         </div>
                       </td>
                     </tr>
@@ -307,13 +309,23 @@ export default function MonthlyReportPage() {
                 })}
               </tbody>
               <tfoot>
-                <tr className="bg-indigo-950 text-white font-extrabold">
+                <tr className="bg-indigo-950 text-white font-semibold">
                   <td className="p-3" colSpan={2}>MONTH TOTAL</td>
-                  <td className="p-3 text-right font-mono text-amber-400">Rs. {totalRevenue.toLocaleString()}</td>
+                  <td className="p-3 text-right font-mono text-accent">Rs. {totalRevenue.toLocaleString()}</td>
                   <td className="p-3 text-xs text-indigo-300">100%</td>
                 </tr>
               </tfoot>
             </table>
+            <Pagination
+              page={companyPagination.page}
+              totalPages={companyPagination.totalPages}
+              totalItems={companyPagination.totalItems}
+              from={companyPagination.from}
+              to={companyPagination.to}
+              pageSize={companyPagination.pageSize}
+              onPageChange={companyPagination.setPage}
+              onPageSizeChange={companyPagination.setPageSize}
+            />
           </div>
         )}
       </div>

@@ -207,11 +207,6 @@ export default function PrintableReceipt({
                     <tr key={idx} className="align-top">
                       <td className="py-1 pr-1 font-semibold leading-snug break-words">
                         {item.product_name_snapshot}
-                        {printSettings.show_batch && (item.batch_number || item.expiry_date) && (
-                          <span className="block text-[8px] font-mono font-normal">
-                            B:{item.batch_number ?? '—'} E:{item.expiry_date ?? '—'}
-                          </span>
-                        )}
                       </td>
                       <td className="py-1 text-center font-bold">{item.quantity}</td>
                       <td className="py-1 text-right font-mono tabular-nums">{item.unit_price}</td>
@@ -438,7 +433,7 @@ export default function PrintableReceipt({
           {printSettings.footer_message || 'جزاك اللهُ خيرًا — Powered by KisanDost'}
         </p>
         <p className="text-[8px] font-mono text-black font-medium">
-          Software: KisanDost POS • Support: +92 300 1234567
+          Software: KisanDost POS • Support: +92 33491728223
         </p>
       </div>
     </div>

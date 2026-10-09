@@ -1,104 +1,194 @@
-'use client';
+'use client'
 
-import React from 'react';
-import AdminShell from '@/components/layout/AdminShell';
-import { dataStore } from '@/lib/data-store';
-import { FileText, ShieldCheck, Clock, CheckCircle2, ChevronRight } from 'lucide-react';
+
+
+import React from 'react'
+
+import AdminShell from '@/components/layout/AdminShell'
+
+import { PageHeader } from '@/components/admin/PageHeader'
+
+import { StatusBadge } from '@/components/admin/StatusBadge'
+
+import { dataStore } from '@/lib/data-store'
+
+import { formatPkr } from '@/components/admin/format'
+
+import { usePagination } from '@/hooks/usePagination'
+
+import Pagination from '@/components/ui/Pagination'
+
+
 
 export default function SuperAdminAuditLogsPage() {
-  const sales = dataStore.getSales();
-  const transfers = dataStore.getTransfers();
+
+  const sales = dataStore.getSales()
+
+  const transfers = dataStore.getTransfers()
+
+
 
   const auditEvents = [
+
     {
+
       id: 'log-1',
+
       time: '2026-08-27 16:30:00',
-      type: 'SUPER_ADMIN_SESSION',
-      action: 'Operator Session Verified',
-      detail: 'Super Admin logged into Platform Control Center from 192.168.1.11',
-      status: 'SECURE',
+
+      type: 'Session',
+
+      action: 'Operator session verified',
+
+      detail: 'Super Admin signed in from 192.168.1.11',
+
+      status: 'active',
+
     },
+
     {
+
       id: 'log-2',
+
       time: '2026-08-27 15:45:12',
-      type: 'COUNTER_SALE',
-      action: 'POS Sale Executed',
-      detail: `Receipt ${sales[0]?.sale_number || 'REC-2026-001'} processed for Rs. ${(sales[0]?.grand_total || 24500).toLocaleString()}`,
-      status: 'COMPLETED',
+
+      type: 'Sale',
+
+      action: 'POS sale recorded',
+
+      detail: `Receipt ${sales[0]?.sale_number || 'REC-2026-001'} for ${formatPkr(sales[0]?.grand_total || 24500)}`,
+
+      status: 'paid',
+
     },
+
     {
+
       id: 'log-3',
+
       time: '2026-08-27 14:10:00',
-      type: 'BRANCH_TRANSFER',
-      action: 'Inventory Transfer Initiated',
-      detail: `Transfer ${transfers[0]?.id || 'TRF-001'} initiated between Main Outlet and Ghalla Mandi Branch`,
-      status: 'IN_TRANSIT',
+
+      type: 'Transfer',
+
+      action: 'Inventory transfer started',
+
+      detail: `Transfer ${transfers[0]?.id || 'TRF-001'} between Main Outlet and Ghalla Mandi Branch`,
+
+      status: 'due soon',
+
     },
+
     {
+
       id: 'log-4',
+
       time: '2026-08-27 12:00:00',
-      type: 'SUBSCRIPTION_AUDIT',
-      action: 'Dealer License Validated',
-      detail: 'License PB-MLT-2024-8891 status verified active with Department of Agriculture',
-      status: 'VERIFIED',
+
+      type: 'License',
+
+      action: 'Dealer license checked',
+
+      detail: 'License PB-MLT-2024-8891 is active',
+
+      status: 'active',
+
     },
-  ];
+
+  ]
+
+
+
+  const pagination = usePagination(auditEvents, 10)
+
+
 
   return (
+
     <AdminShell>
-      <div className="space-y-7">
 
-        {/* Page Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-2xs font-medium text-slate-400 mb-1">
-              <span>Super Admin</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-semibold">Audit & Security</span>
-            </nav>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Platform Security & System Audit Logs
-            </h1>
-          </div>
-        </div>
+      <div className="flex flex-col gap-6">
 
-        {/* Audit Log Solid Table Container */}
-        <div className="bg-gradient-to-br from-slate-50/90 via-white to-emerald-50/30 border border-slate-200 rounded-2xl shadow-card overflow-hidden p-5 space-y-4">
-          <div className="flex items-center space-x-2 border-b border-slate-200 pb-3">
-            <div className="p-2 bg-emerald-700 text-white rounded-lg">
-              <FileText className="w-4 h-4" strokeWidth={2} />
-            </div>
-            <h2 className="font-semibold text-base text-slate-900">System Security Activity Trail</h2>
+        <PageHeader
+
+          crumbs={[{ label: 'Super Admin' }, { label: 'Audit logs' }]}
+
+          title="Audit logs"
+
+          description="Recent operator, sales, transfer, and license events."
+
+        />
+
+
+
+        <section className="overflow-hidden rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] shadow-[var(--kd-shadow)]">
+
+          <div className="border-b border-border px-5 py-4">
+
+            <h2 className="text-base font-semibold tracking-tight">Activity</h2>
+
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
-            {auditEvents.map((log) => (
-              <div key={log.id} className="p-4 flex flex-wrap items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-slate-900 text-amber-400 font-mono">
-                      {log.type}
-                    </span>
-                    <span className="font-semibold text-slate-900 text-xs">{log.action}</span>
+          <ul>
+
+            {pagination.pageItems.map((log) => (
+
+              <li key={log.id} className="flex flex-col gap-2 border-b border-border px-5 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+
+                <div className="min-w-0">
+
+                  <div className="mb-1 flex items-center gap-2">
+
+                    <span className="rounded-full bg-[var(--kd-accent-soft)] px-2 py-0.5 text-xs font-medium text-accent">{log.type}</span>
+
+                    <span className="text-sm font-medium text-foreground">{log.action}</span>
+
                   </div>
-                  <p className="text-xs text-slate-600 font-normal">{log.detail}</p>
+
+                  <p className="text-sm text-muted-foreground">{log.detail}</p>
+
                 </div>
 
-                <div className="flex items-center space-x-4 text-2xs">
-                  <span className="text-slate-500 font-mono font-medium flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    {log.time}
-                  </span>
-                  <span className="bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-md shadow-sm">
-                    {log.status}
-                  </span>
+                <div className="flex items-center gap-3">
+
+                  <span className="text-xs tabular-nums text-muted-foreground">{log.time}</span>
+
+                  <StatusBadge status={log.status} />
+
                 </div>
-              </div>
+
+              </li>
+
             ))}
-          </div>
-        </div>
+
+          </ul>
+
+          <Pagination
+
+            page={pagination.page}
+
+            totalPages={pagination.totalPages}
+
+            totalItems={pagination.totalItems}
+
+            from={pagination.from}
+
+            to={pagination.to}
+
+            pageSize={pagination.pageSize}
+
+            onPageChange={pagination.setPage}
+
+            onPageSizeChange={pagination.setPageSize}
+
+          />
+
+        </section>
 
       </div>
+
     </AdminShell>
-  );
+
+  )
+
 }
+

@@ -13,18 +13,18 @@ const Ctx = createContext<ToastCtx | undefined>(undefined);
 const toastConfig = {
   success: {
     icon: CheckCircle2,
-    classes: 'bg-emerald-900 border-emerald-700 text-white',
-    iconClass: 'text-emerald-300',
+    classes: 'border-border bg-[var(--kd-surface)] text-foreground shadow-[var(--kd-shadow)]',
+    iconClass: 'text-primary',
   },
   error: {
     icon: AlertTriangle,
-    classes: 'bg-status-alert-text border-red-800 text-white',
-    iconClass: 'text-red-200',
+    classes: 'border-border bg-[var(--kd-surface)] text-foreground shadow-[var(--kd-shadow)]',
+    iconClass: 'text-danger',
   },
   info: {
     icon: Info,
-    classes: 'bg-ink border-stone-700 text-white',
-    iconClass: 'text-status-info-text',
+    classes: 'border-border bg-[var(--kd-surface)] text-foreground shadow-[var(--kd-shadow)]',
+    iconClass: 'text-accent',
   },
 };
 

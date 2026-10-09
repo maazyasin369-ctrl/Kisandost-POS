@@ -44,11 +44,11 @@ export default function HeaderNav() {
   ];
 
   return (
-    <header className="bg-emerald-950 text-white shadow-md border-b border-emerald-800">
+    <header className="bg-primary text-primary-foreground shadow-md border-b border-emerald-800">
       {/* Top Banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="bg-emerald-600 text-white p-2 rounded-lg font-bold text-xl flex items-center gap-2">
+          <div className="bg-primary text-white p-2 rounded-lg font-bold text-xl flex items-center gap-2">
             <Store className="h-6 w-6" />
             <span>KisanDost POS</span>
           </div>
@@ -60,29 +60,29 @@ export default function HeaderNav() {
 
         {/* Branch Mode & Switcher (Section 2 & 9) */}
         <div className="flex items-center space-x-4">
-          <div className="flex items-center bg-emerald-900 border border-emerald-700 rounded-md px-3 py-1.5 text-xs text-emerald-200">
-            <span className="text-emerald-400 font-medium mr-2">Branch View:</span>
+          <div className="flex items-center bg-primary border border-emerald-700 rounded-md px-3 py-1.5 text-xs text-emerald-200">
+            <span className="text-primary font-medium mr-2">Branch View:</span>
             <select
               value={selectedBranchId}
               onChange={(e) => setSelectedBranchId(e.target.value)}
               className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="all" className="bg-emerald-950 text-white">🌐 Consolidated (All Branches)</option>
+              <option value="all" className="bg-primary text-primary-foreground">🌐 Consolidated (All Branches)</option>
               {branches.map(b => (
-                <option key={b.id} value={b.id} className="bg-emerald-950 text-white">📍 {b.name}</option>
+                <option key={b.id} value={b.id} className="bg-primary text-primary-foreground">📍 {b.name}</option>
               ))}
             </select>
           </div>
 
-          <div className="hidden lg:flex items-center space-x-2 bg-emerald-900/60 px-3 py-1.5 rounded-full border border-emerald-700/50">
-            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+          <div className="hidden lg:flex items-center space-x-2 bg-primary/60 px-3 py-1.5 rounded-full border border-emerald-700/50">
+            <ShieldCheck className="h-4 w-4 text-primary" />
             <span className="text-xs text-emerald-200 font-medium">{tenant.owner_name} (Owner)</span>
           </div>
         </div>
       </div>
 
       {/* Main Navigation Bar */}
-      <nav className="bg-emerald-900 border-t border-emerald-800">
+      <nav className="bg-primary border-t border-emerald-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto py-2">
             {navItems.map((item) => {
@@ -94,10 +94,10 @@ export default function HeaderNav() {
                   href={item.href}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                     item.highlight
-                      ? 'bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-semibold shadow-sm'
+                      ? 'bg-primary text-primary-foreground hover:opacity-90 font-semibold shadow-[var(--kd-shadow)]'
                       : isActive
                       ? 'bg-emerald-800 text-white border-b-2 border-amber-400'
-                      : 'text-emerald-200 hover:bg-emerald-800/60 hover:text-white'
+                      : 'text-emerald-200 hover:opacity-90/60 hover:text-white'
                   }`}
                 >
                   <Icon className="h-4 w-4" />

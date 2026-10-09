@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createDataClient } from '@/lib/supabase/admin'
 
 export interface SalesTrendPoint {
   time: string
@@ -27,275 +27,215 @@ export interface StockHealthSummary {
   totalItems: number
 }
 
+export type AnalyticsRange = 'today' | '7d' | '30d' | 'custom'
+
 export interface DashboardAnalyticsData {
-  range: 'today' | '7d' | '30d'
+  range: AnalyticsRange
   salesTrend: SalesTrendPoint[]
   companySales: CompanySalesItem[]
   stockHealth: StockHealthSummary
 }
 
+function splitCashCredit(s: { payment_type: string; grand_total: number; amount_paid: number }) {
+  const cashAmt = s.payment_type === 'cash' ? s.grand_total : s.amount_paid
+  const creditAmt = Math.max(0, s.grand_total - cashAmt)
+  return { cashAmt, creditAmt }
+}
+
+function mapBuckets(bucketMap: Map<string, { cash: number; credit: number }>): SalesTrendPoint[] {
+  return Array.from(bucketMap.entries()).map(([time, data]) => ({
+    time,
+    cash: Math.round(data.cash),
+    credit: Math.round(data.credit),
+    total: Math.round(data.cash + data.credit),
+  }))
+}
+
 export async function getDashboardAnalytics(
   tenantId: string,
-  range: 'today' | '7d' | '30d' = 'today'
+  range: AnalyticsRange = 'today',
+  branchId?: string,
+  fromDate?: string,
+  toDate?: string,
 ): Promise<DashboardAnalyticsData> {
-  const admin = createAdminClient()
-
+  const admin = await createDataClient()
   const now = new Date()
 
-  // Calculate start date based on range
   let startDate = new Date()
+  let endDate: Date | null = null
+
   if (range === 'today') {
     startDate.setHours(0, 0, 0, 0)
   } else if (range === '7d') {
     startDate.setDate(now.getDate() - 6)
     startDate.setHours(0, 0, 0, 0)
-  } else {
+  } else if (range === '30d') {
     startDate.setDate(now.getDate() - 29)
     startDate.setHours(0, 0, 0, 0)
+  } else {
+    const from = fromDate ? new Date(`${fromDate}T00:00:00`) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)
+    const to = toDate ? new Date(`${toDate}T23:59:59.999`) : new Date()
+    startDate = from
+    endDate = to
   }
 
-  // 1. Fetch Sales for Trend
-  const { data: rawSales } = await admin
+  let salesQuery = admin
     .from('sales')
     .select('id, grand_total, amount_paid, payment_type, created_at, status')
     .eq('tenant_id', tenantId)
     .eq('status', 'completed')
     .gte('created_at', startDate.toISOString())
     .order('created_at', { ascending: true })
+  if (endDate) salesQuery = salesQuery.lte('created_at', endDate.toISOString())
+  if (branchId) salesQuery = salesQuery.eq('branch_id', branchId)
+  const { data: rawSales } = await salesQuery
 
-  // 2. Fetch Companies & Sale Items for Company Breakdown
-  const { data: rawCompanies } = await admin
-    .from('companies')
-    .select('id, name')
+  const { data: branchRows } = await admin
+    .from('branches')
+    .select('id')
     .eq('tenant_id', tenantId)
+    .eq('is_active', true)
+  const branchIds = (branchId ? [branchId] : (branchRows ?? []).map((b) => b.id)).filter(Boolean)
 
-  // 3. Fetch Batches & Products for Stock Health
+  let itemsQuery = admin
+    .from('sale_items')
+    .select('line_total, quantity, batches(products(company_id, companies(id, name))), sales!inner(tenant_id, status, created_at, branch_id)')
+    .eq('sales.tenant_id', tenantId)
+    .eq('sales.status', 'completed')
+    .gte('sales.created_at', startDate.toISOString())
+  if (endDate) itemsQuery = itemsQuery.lte('sales.created_at', endDate.toISOString())
+  if (branchId) itemsQuery = itemsQuery.eq('sales.branch_id', branchId)
+  const { data: rawItems } = await itemsQuery
+
   const ninetyDaysFromNow = new Date()
   ninetyDaysFromNow.setDate(now.getDate() + 90)
 
-  const { data: rawBatches } = await admin
+  let batchQuery = admin
     .from('batches')
     .select('id, quantity_current, expiry_date, product_id, products(reorder_level)')
+    .gt('quantity_current', 0)
+  if (branchIds.length > 0) batchQuery = batchQuery.in('branch_id', branchIds)
+  const { data: rawBatches } = branchIds.length > 0 ? await batchQuery : { data: [] as never[] }
 
-  // ─── Process Sales Trend ───────────────────────────────────────────────────
   let salesTrend: SalesTrendPoint[] = []
 
   if (range === 'today') {
-    // Generate 12 1-hour/2-hour interval buckets from 08:00 to 20:00
     const hours = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
     const bucketMap = new Map<string, { cash: number; credit: number }>()
+    hours.forEach((h) => bucketMap.set(h, { cash: 0, credit: 0 }))
 
-    hours.forEach(h => bucketMap.set(h, { cash: 0, credit: 0 }))
-
-    if (rawSales && rawSales.length > 0) {
-      rawSales.forEach(s => {
-        const date = new Date(s.created_at)
-        const hour = date.getHours()
-        const hourKey = `${String(hour).padStart(2, '0')}:00`
-        if (bucketMap.has(hourKey)) {
-          const cashAmt = s.payment_type === 'cash' ? s.grand_total : s.amount_paid
-          const creditAmt = s.grand_total - cashAmt
-          const curr = bucketMap.get(hourKey)!
-          bucketMap.set(hourKey, {
-            cash: curr.cash + cashAmt,
-            credit: curr.credit + Math.max(0, creditAmt),
-          })
-        }
-      })
-
-      salesTrend = Array.from(bucketMap.entries()).map(([time, data]) => ({
-        time,
-        cash: Math.round(data.cash),
-        credit: Math.round(data.credit),
-        total: Math.round(data.cash + data.credit),
-      }))
-    } else {
-      // Seeded realistic data if database sales are empty
-      salesTrend = [
-        { time: '08:00', cash: 12500, credit: 8000, total: 20500 },
-        { time: '09:00', cash: 24000, credit: 15000, total: 39000 },
-        { time: '10:00', cash: 45000, credit: 32000, total: 77000 },
-        { time: '11:00', cash: 68000, credit: 42000, total: 110000 },
-        { time: '12:00', cash: 52000, credit: 38000, total: 90000 },
-        { time: '13:00', cash: 38000, credit: 22000, total: 60000 },
-        { time: '14:00', cash: 62000, credit: 48000, total: 110000 },
-        { time: '15:00', cash: 85000, credit: 65000, total: 150000 },
-        { time: '16:00', cash: 94000, credit: 72000, total: 166000 },
-        { time: '17:00', cash: 78000, credit: 55000, total: 133000 },
-        { time: '18:00', cash: 54000, credit: 36000, total: 90000 },
-        { time: '19:00', cash: 32000, credit: 18000, total: 50000 },
-      ]
+    for (const s of rawSales ?? []) {
+      const hourKey = `${String(new Date(s.created_at).getHours()).padStart(2, '0')}:00`
+      if (!bucketMap.has(hourKey)) continue
+      const { cashAmt, creditAmt } = splitCashCredit(s)
+      const curr = bucketMap.get(hourKey)!
+      bucketMap.set(hourKey, { cash: curr.cash + cashAmt, credit: curr.credit + creditAmt })
     }
+    salesTrend = mapBuckets(bucketMap)
   } else if (range === '7d') {
-    const days: string[] = []
     const bucketMap = new Map<string, { cash: number; credit: number }>()
-
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(now.getDate() - i)
-      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' })
-      days.push(dayLabel)
-      bucketMap.set(dayLabel, { cash: 0, credit: 0 })
+      bucketMap.set(d.toLocaleDateString('en-US', { weekday: 'short' }), { cash: 0, credit: 0 })
     }
-
-    if (rawSales && rawSales.length > 0) {
-      rawSales.forEach(s => {
-        const date = new Date(s.created_at)
-        const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' })
-        if (bucketMap.has(dayLabel)) {
-          const cashAmt = s.payment_type === 'cash' ? s.grand_total : s.amount_paid
-          const creditAmt = s.grand_total - cashAmt
-          const curr = bucketMap.get(dayLabel)!
-          bucketMap.set(dayLabel, {
-            cash: curr.cash + cashAmt,
-            credit: curr.credit + Math.max(0, creditAmt),
-          })
-        }
-      })
-
-      salesTrend = Array.from(bucketMap.entries()).map(([time, data]) => ({
-        time,
-        cash: Math.round(data.cash),
-        credit: Math.round(data.credit),
-        total: Math.round(data.cash + data.credit),
-      }))
-    } else {
-      salesTrend = [
-        { time: 'Mon', cash: 320000, credit: 210000, total: 530000 },
-        { time: 'Tue', cash: 410000, credit: 280000, total: 690000 },
-        { time: 'Wed', cash: 380000, credit: 240000, total: 620000 },
-        { time: 'Thu', cash: 490000, credit: 350000, total: 840000 },
-        { time: 'Fri', cash: 560000, credit: 420000, total: 980000 },
-        { time: 'Sat', cash: 640000, credit: 490000, total: 1130000 },
-        { time: 'Sun', cash: 290000, credit: 180000, total: 470000 },
-      ]
+    for (const s of rawSales ?? []) {
+      const dayLabel = new Date(s.created_at).toLocaleDateString('en-US', { weekday: 'short' })
+      if (!bucketMap.has(dayLabel)) continue
+      const { cashAmt, creditAmt } = splitCashCredit(s)
+      const curr = bucketMap.get(dayLabel)!
+      bucketMap.set(dayLabel, { cash: curr.cash + cashAmt, credit: curr.credit + creditAmt })
     }
-  } else {
-    // 30d range
-    const dates: string[] = []
+    salesTrend = mapBuckets(bucketMap)
+  } else if (range === '30d') {
     const bucketMap = new Map<string, { cash: number; credit: number }>()
-
     for (let i = 29; i >= 0; i -= 3) {
       const d = new Date()
       d.setDate(now.getDate() - i)
       const dateLabel = `${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })}`
-      dates.push(dateLabel)
       bucketMap.set(dateLabel, { cash: 0, credit: 0 })
     }
-
-    if (rawSales && rawSales.length > 0) {
-      rawSales.forEach(s => {
-        const date = new Date(s.created_at)
-        const dateLabel = `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short' })}`
-        // Find nearest bucket
-        const bucketKeys = Array.from(bucketMap.keys())
-        const targetBucket = bucketKeys.find(k => k === dateLabel) || bucketKeys[0]
-        const cashAmt = s.payment_type === 'cash' ? s.grand_total : s.amount_paid
-        const creditAmt = s.grand_total - cashAmt
-        const curr = bucketMap.get(targetBucket)!
-        bucketMap.set(targetBucket, {
-          cash: curr.cash + cashAmt,
-          credit: curr.credit + Math.max(0, creditAmt),
-        })
-      })
-
-      salesTrend = Array.from(bucketMap.entries()).map(([time, data]) => ({
-        time,
-        cash: Math.round(data.cash),
-        credit: Math.round(data.credit),
-        total: Math.round(data.cash + data.credit),
-      }))
-    } else {
-      salesTrend = [
-        { time: '1 Sep', cash: 1200000, credit: 850000, total: 2050000 },
-        { time: '4 Sep', cash: 1450000, credit: 980000, total: 2430000 },
-        { time: '7 Sep', cash: 1680000, credit: 1120000, total: 2800000 },
-        { time: '10 Sep', cash: 1520000, credit: 1040000, total: 2560000 },
-        { time: '13 Sep', cash: 1890000, credit: 1350000, total: 3240000 },
-        { time: '16 Sep', cash: 2100000, credit: 1480000, total: 3580000 },
-        { time: '19 Sep', cash: 1950000, credit: 1320000, total: 3270000 },
-        { time: '22 Sep', cash: 2300000, credit: 1650000, total: 3950000 },
-      ]
+    const bucketKeys = Array.from(bucketMap.keys())
+    for (const s of rawSales ?? []) {
+      const date = new Date(s.created_at)
+      const dateLabel = `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short' })}`
+      const targetBucket = bucketKeys.find((k) => k === dateLabel) || bucketKeys[0]
+      const { cashAmt, creditAmt } = splitCashCredit(s)
+      const curr = bucketMap.get(targetBucket)!
+      bucketMap.set(targetBucket, { cash: curr.cash + cashAmt, credit: curr.credit + creditAmt })
     }
-  }
-
-  // ─── Process Company Sales Breakdown ─────────────────────────────────────
-  let companySales: CompanySalesItem[] = []
-
-  const seedCompanies: CompanySalesItem[] = [
-    { id: '1', name: 'Bayer Crop Science', amount: 845000, percentage: 38, itemCount: 142 },
-    { id: '2', name: 'Syngenta Pakistan', amount: 560000, percentage: 25, itemCount: 98 },
-    { id: '3', name: 'FMC Chemicals', amount: 380000, percentage: 17, itemCount: 64 },
-    { id: '4', name: 'Engro Fertilizers', amount: 260000, percentage: 12, itemCount: 45 },
-    { id: '5', name: 'Fatima Fertilizer', amount: 175000, percentage: 8, itemCount: 29 },
-  ]
-
-  if (rawCompanies && rawCompanies.length > 0) {
-    // Return company names with calculated contribution or seed distribution
-    const totalRev = seedCompanies.reduce((acc, c) => acc + c.amount, 0)
-    companySales = rawCompanies.slice(0, 5).map((comp, idx) => {
-      const seed = seedCompanies[idx] || seedCompanies[0]
-      return {
-        id: comp.id,
-        name: comp.name,
-        amount: seed.amount,
-        percentage: seed.percentage,
-        itemCount: seed.itemCount,
-      }
-    })
-    // Sort descending
-    companySales.sort((a, b) => b.amount - a.amount)
+    salesTrend = mapBuckets(bucketMap)
   } else {
-    companySales = seedCompanies
-  }
-
-  // ─── Process Stock Health Overview ────────────────────────────────────────
-  let stockHealth: StockHealthSummary = {
-    healthyCount: 42,
-    healthyPercent: 70,
-    expiringCount: 12,
-    expiringPercent: 20,
-    lowStockCount: 6,
-    lowStockPercent: 10,
-    totalItems: 60,
-  }
-
-  if (rawBatches && rawBatches.length > 0) {
-    let healthy = 0
-    let expiring = 0
-    let lowStock = 0
-    const total = rawBatches.length
-
-    rawBatches.forEach(b => {
-      const isExpiring = new Date(b.expiry_date) <= ninetyDaysFromNow
-      const prod = Array.isArray(b.products) ? b.products[0] : b.products
-      const reorderLevel = prod?.reorder_level ?? 10
-      const isLow = b.quantity_current <= reorderLevel
-
-      if (isLow) {
-        lowStock++
-      } else if (isExpiring) {
-        expiring++
-      } else {
-        healthy++
-      }
-    })
-
-    stockHealth = {
-      healthyCount: healthy || 38,
-      healthyPercent: Math.round(((healthy || 38) / (total || 54)) * 100),
-      expiringCount: expiring || 11,
-      expiringPercent: Math.round(((expiring || 11) / (total || 54)) * 100),
-      lowStockCount: lowStock || 5,
-      lowStockPercent: Math.round(((lowStock || 5) / (total || 54)) * 100),
-      totalItems: total || 54,
+    // Custom range — one bucket per calendar day
+    const bucketMap = new Map<string, { cash: number; credit: number }>()
+    const cursor = new Date(startDate)
+    cursor.setHours(0, 0, 0, 0)
+    const last = endDate ? new Date(endDate) : new Date()
+    last.setHours(0, 0, 0, 0)
+    while (cursor <= last) {
+      const label = `${cursor.getDate()} ${cursor.toLocaleDateString('en-US', { month: 'short' })}`
+      bucketMap.set(label, { cash: 0, credit: 0 })
+      cursor.setDate(cursor.getDate() + 1)
     }
+    for (const s of rawSales ?? []) {
+      const date = new Date(s.created_at)
+      const label = `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short' })}`
+      if (!bucketMap.has(label)) continue
+      const { cashAmt, creditAmt } = splitCashCredit(s)
+      const curr = bucketMap.get(label)!
+      bucketMap.set(label, { cash: curr.cash + cashAmt, credit: curr.credit + creditAmt })
+    }
+    salesTrend = mapBuckets(bucketMap)
+  }
+
+  const companyMap = new Map<string, CompanySalesItem>()
+  for (const item of rawItems ?? []) {
+    const batch = Array.isArray(item.batches) ? item.batches[0] : item.batches
+    const product = batch && (Array.isArray(batch.products) ? batch.products[0] : batch.products)
+    const company = product && (Array.isArray(product.companies) ? product.companies[0] : product.companies)
+    const id = company?.id ?? 'unknown'
+    const name = company?.name ?? 'Unassigned'
+    const current = companyMap.get(id) ?? { id, name, amount: 0, percentage: 0, itemCount: 0 }
+    current.amount += Number(item.line_total) || 0
+    current.itemCount += Number(item.quantity) || 0
+    companyMap.set(id, current)
+  }
+  const companyTotal = [...companyMap.values()].reduce((sum, c) => sum + c.amount, 0)
+  const companySales = [...companyMap.values()]
+    .map((c) => ({
+      ...c,
+      amount: Math.round(c.amount),
+      percentage: companyTotal > 0 ? Math.round((c.amount / companyTotal) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5)
+
+  let healthy = 0
+  let expiring = 0
+  let lowStock = 0
+  const total = rawBatches?.length ?? 0
+  for (const b of rawBatches ?? []) {
+    const isExpiring = new Date(b.expiry_date) <= ninetyDaysFromNow
+    const prod = Array.isArray(b.products) ? b.products[0] : b.products
+    const reorderLevel = prod?.reorder_level ?? 10
+    const isLow = b.quantity_current <= reorderLevel
+    if (isLow) lowStock++
+    else if (isExpiring) expiring++
+    else healthy++
   }
 
   return {
     range,
     salesTrend,
     companySales,
-    stockHealth,
+    stockHealth: {
+      healthyCount: healthy,
+      healthyPercent: total ? Math.round((healthy / total) * 100) : 0,
+      expiringCount: expiring,
+      expiringPercent: total ? Math.round((expiring / total) * 100) : 0,
+      lowStockCount: lowStock,
+      lowStockPercent: total ? Math.round((lowStock / total) * 100) : 0,
+      totalItems: total,
+    },
   }
 }

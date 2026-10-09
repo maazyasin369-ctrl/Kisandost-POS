@@ -1,233 +1,199 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { ArrowLeftRight, Plus, CheckCircle2, Truck } from 'lucide-react'
-import { getStockTransfers, createStockTransfer, approveStockTransfer } from '@/actions/inventory'
+import React, { useEffect, useState } from 'react'
+import { ArrowLeftRight } from 'lucide-react'
+import { approveStockTransfer, createStockTransfer, getTransferWorkspace } from '@/actions/inventory'
+import ModuleLocked from '@/components/shop/ModuleLocked'
 import { useToast } from '@/components/ui/Toast'
+import { usePagination } from '@/hooks/usePagination'
+import Pagination from '@/components/ui/Pagination'
 
-type TransferData = Awaited<ReturnType<typeof getStockTransfers>>;
+type Workspace = Awaited<ReturnType<typeof getTransferWorkspace>>
+type TransferWorkspace = Extract<Workspace, { transfers: unknown[] }>
+type TransferRow = TransferWorkspace['transfers'][number]
+
+function isTransferWorkspace(data: Workspace | null): data is TransferWorkspace {
+  return !!data && 'transfers' in data
+}
 
 export default function TransfersPage() {
   const { showToast } = useToast()
-  const [transfers, setTransfers] = useState<TransferData>([])
+  const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
-  const [fromBranchId, setFromBranchId] = useState('22222222-2222-2222-2222-222222222222')
-  const [toBranchId, setToBranchId] = useState('22222222-2222-2222-2222-333333333333')
-  const [batchId, setBatchId] = useState('55555555-5555-5555-5555-111111111111')
-  const [quantity, setQuantity] = useState('10')
+  const [open, setOpen] = useState(false)
+  const [fromBranchId, setFromBranchId] = useState('')
+  const [toBranchId, setToBranchId] = useState('')
+  const [batchId, setBatchId] = useState('')
+  const [quantity, setQuantity] = useState('1')
   const [submitting, setSubmitting] = useState(false)
 
-  const loadData = async () => {
+  const transferRows: TransferRow[] = isTransferWorkspace(workspace) ? workspace.transfers : []
+  const pagination = usePagination(transferRows, 10)
+
+  const load = async () => {
     setLoading(true)
-    const data = await getStockTransfers('11111111-1111-1111-1111-111111111111')
-    setTransfers(data)
+    const data = await getTransferWorkspace()
+    setWorkspace(data)
+    if (isTransferWorkspace(data)) {
+      setFromBranchId(data.branches[0]?.id ?? '')
+      setToBranchId(data.branches[1]?.id ?? data.branches[0]?.id ?? '')
+      setBatchId(data.batches[0]?.id ?? '')
+    }
     setLoading(false)
   }
 
   useEffect(() => {
-    loadData()
+    load()
   }, [])
 
-  const handleCreateTransfer = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!quantity || parseInt(quantity) <= 0) return
-
-    setSubmitting(true)
-    const res = await createStockTransfer({
-      tenantId: '11111111-1111-1111-1111-111111111111',
-      fromBranchId,
-      toBranchId,
-      requestedBy: 'usr-owner1',
-      items: [{ batchId, quantity: parseInt(quantity) }],
-    })
-    setSubmitting(false)
-
-    if ('id' in res && res.id) {
-      showToast('Stock transfer request created!', 'success')
-      setIsModalOpen(false)
-      loadData()
-    } else {
-      const errMsg = 'error' in res ? (res as { error?: string }).error : 'Failed to create transfer'
-      showToast(errMsg || 'Failed to create transfer', 'error')
-    }
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading transfers…</p>
   }
 
-  const handleApproveTransfer = async (id: string) => {
-    const res = await approveStockTransfer(id, 'usr-owner1')
-    if (res.success) {
-      showToast('Stock transfer approved & inventory updated in destination branch!', 'success')
-      loadData()
+  if (!isTransferWorkspace(workspace)) {
+    return (
+      <ModuleLocked
+        title="Branch transfers are off"
+        body="This shop is a single outlet. Stock moves between outlets stay hidden until Super Admin turns on Multi-Branch access."
+      />
+    )
+  }
+
+  const canTransfer = workspace.branches.length >= 2
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setSubmitting(true)
+    const res = await createStockTransfer({
+      tenantId: '',
+      fromBranchId,
+      toBranchId,
+      requestedBy: '',
+      items: [{ batchId, quantity: Number(quantity) }],
+    })
+    setSubmitting(false)
+    if ('id' in res && res.id) {
+      showToast('Transfer requested.', 'success')
+      setOpen(false)
+      load()
     } else {
-      showToast(res.error || 'Approval failed', 'error')
+      showToast('error' in res ? res.error || 'Could not create the transfer.' : 'Could not create the transfer.', 'error')
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-6 shadow-[var(--kd-shadow)]">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center space-x-2.5 tracking-tight">
-            <div className="p-2 bg-slate-950 text-yellow-400 rounded-xl">
-              <ArrowLeftRight className="h-5 w-5" strokeWidth={2.2} />
-            </div>
-            <span>Inter-Branch Stock Transfers</span>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
+            <ArrowLeftRight className="size-5 text-primary" />
+            Branch transfers
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Request, track, and approve stock transfers between branch locations with atomic deduct-then-add logic.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Move stock from one outlet to another. The destination outlet receives the same batch.</p>
         </div>
-
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+          type="button"
+          disabled={!canTransfer}
+          onClick={() => setOpen(true)}
+          className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50"
         >
-          <Plus className="h-4 w-4 stroke-[3]" />
-          <span>NEW BRANCH STOCK TRANSFER</span>
+          New transfer
         </button>
       </div>
 
-      {/* New Transfer Request Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-emerald-200">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center space-x-2">
-                <ArrowLeftRight className="h-5 w-5 text-emerald-700" />
-                <span>Request Inter-Branch Stock Transfer</span>
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateTransfer} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">From Sending Branch *</label>
-                  <select
-                    value={fromBranchId}
-                    onChange={(e) => setFromBranchId(e.target.value)}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-semibold"
-                  >
-                    <option value="22222222-2222-2222-2222-222222222222">Multan Grains Market Branch</option>
-                    <option value="22222222-2222-2222-2222-333333333333">Khanewal Bypass Branch</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">To Destination Branch *</label>
-                  <select
-                    value={toBranchId}
-                    onChange={(e) => setToBranchId(e.target.value)}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-semibold"
-                  >
-                    <option value="22222222-2222-2222-2222-333333333333">Khanewal Bypass Branch</option>
-                    <option value="22222222-2222-2222-2222-222222222222">Multan Grains Market Branch</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Select Product Batch to Transfer *</label>
-                <select
-                  value={batchId}
-                  onChange={(e) => setBatchId(e.target.value)}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-semibold"
-                >
-                  <option value="55555555-5555-5555-5555-111111111111">Confidor 200 SL — Batch: BAY-2025-09A (Exp: 2026-11-30)</option>
-                  <option value="55555555-5555-5555-5555-222222222222">Coragen 20 SC — Batch: FMC-COR-441 (Exp: 2026-09-15)</option>
-                  <option value="55555555-5555-5555-5555-333333333333">Match 50 EC — Batch: SYN-MAT-102 (Exp: 2027-01-10)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Transfer Quantity (Units) *</label>
-                <input
-                  type="number"
-                  required
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl font-extrabold text-sm"
-                />
-              </div>
-
-              <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-1 shadow-md transition-all cursor-pointer"
-                >
-                  <Truck className="h-4 w-4" />
-                  <span>{submitting ? 'Submitting...' : 'Submit Transfer Request'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {!canTransfer && (
+        <p className="rounded-[var(--kd-radius)] border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+          Add a second outlet under Branch Locations before requesting a transfer.
+        </p>
       )}
 
-      {/* Transfers List */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
-        <h2 className="font-extrabold text-base text-slate-900">Stock Transfer History &amp; Status</h2>
-
-        {loading ? (
-          <div className="py-8 text-center text-slate-400 text-xs">Loading transfer requests...</div>
-        ) : transfers.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-xs">No stock transfers recorded yet.</div>
+      <div className="overflow-hidden rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)]">
+        {workspace.transfers.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">No transfers yet.</p>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {transfers.map((t) => {
-              const fromObj = Array.isArray(t.from_branch) ? t.from_branch[0] : t.from_branch;
-              const toObj = Array.isArray(t.to_branch) ? t.to_branch[0] : t.to_branch;
-              const reqObj = Array.isArray(t.requester) ? t.requester[0] : t.requester;
+          <>
+            {pagination.pageItems.map((transfer) => {
+              const from = Array.isArray(transfer.from_branch) ? transfer.from_branch[0] : transfer.from_branch
+              const to = Array.isArray(transfer.to_branch) ? transfer.to_branch[0] : transfer.to_branch
               return (
-                <div key={t.id} className="py-4 flex flex-wrap items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-2xs font-semibold uppercase px-2.5 py-0.5 rounded-full ${
-                        t.status === 'received' ? 'bg-emerald-100 text-emerald-900' :
-                        t.status === 'pending' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'
-                      }`}>
-                        STATUS: {t.status.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="text-sm font-extrabold text-slate-900">
-                      From: {fromObj?.name} → To: {toObj?.name}
-                    </div>
-                    <div className="text-2xs text-slate-500 font-mono">
-                      Requested by: {reqObj?.full_name ?? 'Staff'} · Date: {new Date(t.created_at).toLocaleString()}
-                    </div>
+                <div key={transfer.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{from?.name ?? 'Outlet'} → {to?.name ?? 'Outlet'}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(transfer.created_at).toLocaleString()} · {transfer.status}</p>
                   </div>
-
-                {t.status === 'pending' && (
-                  <button
-                    onClick={() => handleApproveTransfer(t.id)}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold px-4 py-2 rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>APPROVE &amp; RECEIVE STOCK</span>
-                  </button>
-                )}
-              </div>
-            );
+                  {transfer.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await approveStockTransfer(transfer.id, '')
+                        if ('success' in res && res.success) {
+                          showToast('Transfer received at the destination outlet.', 'success')
+                          load()
+                        } else {
+                          showToast('error' in res ? res.error || 'Could not receive this transfer.' : 'Could not receive this transfer.', 'error')
+                        }
+                      }}
+                      className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                    >
+                      Receive
+                    </button>
+                  )}
+                </div>
+              )
             })}
-          </div>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              from={pagination.from}
+              to={pagination.to}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+            />
+          </>
         )}
       </div>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-24" onClick={() => setOpen(false)}>
+          <form
+            onSubmit={handleCreate}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md space-y-3 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-5 shadow-[var(--kd-shadow)]"
+          >
+            <h2 className="text-base font-semibold text-foreground">New transfer</h2>
+            <label className="block text-xs text-muted-foreground">
+              From
+              <select value={fromBranchId} onChange={(event) => setFromBranchId(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+                {workspace.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+              </select>
+            </label>
+            <label className="block text-xs text-muted-foreground">
+              To
+              <select value={toBranchId} onChange={(event) => setToBranchId(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+                {workspace.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+              </select>
+            </label>
+            <label className="block text-xs text-muted-foreground">
+              Batch
+              <select value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+                {workspace.batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.label}</option>)}
+              </select>
+            </label>
+            <label className="block text-xs text-muted-foreground">
+              Quantity
+              <input value={quantity} onChange={(event) => setQuantity(event.target.value)} type="number" min={1} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setOpen(false)} className="rounded-full px-3 py-1.5 text-xs text-muted-foreground">Cancel</button>
+              <button type="submit" disabled={submitting || !batchId} className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                {submitting ? 'Saving…' : 'Request transfer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

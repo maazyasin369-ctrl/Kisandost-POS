@@ -1,6 +1,72 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+/*
+  KisanDost theme tokens.
+  Change --kd-primary here to recolor the Super Admin dashboard, charts included.
+*/
+:root {
+  color-scheme: light;
+  --kd-primary: #145c3a;
+  --kd-primary-foreground: #ffffff;
+  --kd-accent: #2c4a86;
+  --kd-background: #f4f6f8;
+  --kd-surface: #ffffff;
+  --kd-border: #e7eaee;
+  --kd-text: #101828;
+  --kd-muted: #667085;
+  --kd-success: #15803d;
+  --kd-warning: #b45309;
+  --kd-danger: #b91c1c;
+  --kd-radius: 12px;
+  --kd-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.04);
+  --kd-font: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+  --kd-chart-1: var(--kd-primary);
+  --kd-chart-2: var(--kd-accent);
+  --kd-chart-3: color-mix(in srgb, var(--kd-accent) 35%, white);
+  --kd-primary-soft: color-mix(in srgb, var(--kd-primary) 10%, transparent);
+  --kd-accent-soft: color-mix(in srgb, var(--kd-accent) 10%, transparent);
+}
+
+.dark {
+  color-scheme: dark;
+  --kd-primary: #3d9a6a;
+  --kd-primary-foreground: #052e1c;
+  --kd-accent: #8eace8;
+  --kd-background: #0c0f0e;
+  --kd-surface: #141816;
+  --kd-border: #2a302c;
+  --kd-text: #f3f4f6;
+  --kd-muted: #9ca3af;
+  --kd-success: #4ade80;
+  --kd-warning: #fbbf24;
+  --kd-danger: #f87171;
+  --kd-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --kd-chart-2: var(--kd-accent);
+  --kd-chart-3: color-mix(in srgb, var(--kd-accent) 40%, black);
+  --kd-primary-soft: color-mix(in srgb, var(--kd-primary) 18%, transparent);
+  --kd-accent-soft: color-mix(in srgb, var(--kd-accent) 16%, transparent);
+}
+
+@theme inline {
+  --color-primary: var(--kd-primary);
+  --color-primary-foreground: var(--kd-primary-foreground);
+  --color-accent: var(--kd-accent);
+  --color-background: var(--kd-background);
+  --color-foreground: var(--kd-text);
+  --color-border: var(--kd-border);
+  --color-muted-foreground: var(--kd-muted);
+  --color-success: var(--kd-success);
+  --color-warning: var(--kd-warning);
+  --color-danger: var(--kd-danger);
+  --color-chart-1: var(--kd-chart-1);
+  --color-chart-2: var(--kd-chart-2);
+  --color-chart-3: var(--kd-chart-3);
+  --radius-card: var(--kd-radius);
+  --shadow-token: var(--kd-shadow);
+  --font-sans: var(--kd-font);
+}
+
 @theme {
   --color-canvas: #F8FAFC;
   --color-surface: #FFFFFF;
@@ -128,8 +194,9 @@
 
   .printable-receipt-root {
     position: absolute !important;
-    left: 0 !important;
+    left: 50% !important;
     top: 0 !important;
+    transform: translateX(-50%) !important;
     display: block !important;
     margin: 0 auto !important;
     padding-bottom: 10mm !important; /* Safety bottom padding for cutter */
@@ -149,5 +216,52 @@
 
   .printable-receipt-root table {
     font-variant-numeric: tabular-nums !important;
+  }
+}
+
+.kd-theme-icon {
+  display: inline-flex;
+  animation: kd-theme-icon 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes kd-theme-icon {
+  from {
+    transform: rotate(-80deg) scale(0.55);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+html.kd-theme-anim::view-transition-old(root),
+html.kd-theme-anim::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html.kd-theme-anim::view-transition-old(root) {
+  z-index: 1;
+}
+
+html.kd-theme-anim::view-transition-new(root) {
+  z-index: 2;
+  animation: kd-theme-reveal 560ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes kd-theme-reveal {
+  from {
+    clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 0%));
+  }
+  to {
+    clip-path: circle(150vmax at var(--theme-x, 50%) var(--theme-y, 0%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kd-theme-icon,
+  html.kd-theme-anim::view-transition-new(root) {
+    animation: none;
   }
 }

@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AdminShell from '@/components/layout/AdminShell';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { StatCard } from '@/components/admin/StatCard';
+import { StatusBadge } from '@/components/admin/StatusBadge';
 import { dataStore } from '@/lib/data-store';
 import {
   Store,
@@ -27,7 +30,6 @@ import {
   Phone,
   Building2,
   AlertCircle,
-  Sparkles,
   ShieldCheck,
   KeyRound,
   Eye,
@@ -39,6 +41,8 @@ import {
 } from 'lucide-react';
 import { SubscriptionStatus } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
+import { usePagination } from '@/hooks/usePagination';
+import Pagination from '@/components/ui/Pagination';
 
 interface BranchInput {
   name: string;
@@ -153,12 +157,7 @@ export default function SuperAdminTenantsPage() {
   const handleStatusChange = (tenantId: string, newStatus: SubscriptionStatus) => {
     dataStore.updateTenantStatus(tenantId, newStatus);
     reloadTenants();
-    showToast(`Subscription status updated to ${newStatus.toUpperCase()}`, 'success');
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('super_admin_authenticated');
-    router.push('/admin/login');
+    showToast(`Subscription status updated to ${newStatus}`, 'success');
   };
 
   const handleBranchSetupChange = (setup: 'single' | 'multiple') => {
@@ -321,6 +320,7 @@ export default function SuperAdminTenantsPage() {
     }
     return true;
   });
+  const pagination = usePagination(filteredTenants, 10);
 
   const totalTenants = tenants.length;
   const activeCount = tenants.filter((t) => t.subscription_status === 'active').length;
@@ -328,193 +328,67 @@ export default function SuperAdminTenantsPage() {
 
   return (
     <AdminShell>
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          crumbs={[{ label: 'Super Admin' }, { label: 'Registered shops' }]}
+          title="Registered shops"
+          description="Create shops, review licenses, and manage subscription status."
+        />
 
-        {/* Hero Header Banner matching Screenshot 1:1 */}
-        <div className="bg-gradient-to-r from-amber-50 via-white to-emerald-50 border border-amber-100 rounded-3xl p-6 sm:p-7 shadow-xs relative overflow-hidden flex flex-col justify-between space-y-6">
-          
-          {/* Top Row inside Hero Banner: Navigation & Action Buttons */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <nav className="flex items-center gap-1.5 text-2xs font-medium text-amber-700">
-              <span>Super Admin</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-medium">Dashboard</span>
-            </nav>
-
-            {/* Quick Actions & Primary "+ Create New Tenant" Button */}
-            <div className="flex flex-wrap items-center space-x-3 gap-y-2">
-              <button
-                onClick={() => {
-                  setFormError(null);
-                  setIsCreateModalOpen(true);
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-2xs font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" strokeWidth={2} />
-                <span>+ Create New Tenant</span>
-              </button>
-
-              <Link
-                href="/dashboard"
-                className="bg-white hover:bg-slate-50 text-slate-800 text-2xs font-semibold px-4 py-2 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 transition-all"
-              >
-                <Store className="w-3.5 h-3.5 text-amber-600" />
-                <span>Switch to Shop Counter</span>
-              </Link>
-
-              <button
-                onClick={handleLogout}
-                className="bg-slate-950 hover:bg-slate-800 text-white text-2xs font-semibold px-4 py-2 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Middle Row inside Hero Banner: Title & Subtitle + Isolation Active Box */}
-          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-            <div className="space-y-1 max-w-2xl">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                Registered Tenant Shops Catalog
-              </h1>
-              <p className="text-xs text-slate-600 font-normal leading-relaxed">
-                Multi-tenant management portal: Create new shop tenants, view registered pesticide shops, subscription status, and per-tenant server-enforced feature flags.
-              </p>
-            </div>
-
-            {/* Dark Green Badge matching Screenshot Right Side */}
-            <div className="bg-[#00875A] text-white p-3.5 px-5 rounded-2xl flex items-center space-x-3.5 shadow-md border border-[#006C48] shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <Leaf className="w-5 h-5 text-white fill-white" />
-              </div>
-              <div className="leading-tight">
-                <div className="text-xs font-semibold text-white flex items-center gap-1">
-                  <span>Multi-Tenant Isolation Active</span>
-                </div>
-                <div className="text-[11px] font-medium text-emerald-100 flex items-center gap-1 mt-0.5">
-                  <span>{totalTenants} Shop Accounts Registered</span>
-                  <Check className="w-3.5 h-3.5 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard icon={Store} label="Registered shops" value={String(totalTenants)} hint="tenants" trend={{ value: 4 }} spark={[1, 1, 2, 2, totalTenants || 1]} />
+          <StatCard icon={CheckCircle2} label="Active subscriptions" value={String(activeCount)} hint="paid" trend={{ value: 2 }} spark={[0, 1, 1, activeCount || 0, activeCount || 0]} />
+          <StatCard icon={Clock} tone="accent" label="Trial accounts" value={String(trialCount)} hint="shops" trend={{ value: -1 }} spark={[1, 2, 2, trialCount || 1, trialCount || 1]} />
         </div>
 
-        {/* Top 3 KPI Summary Cards with Upward Trendlines matching Screenshot */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          
-          {/* Card 1: Total Registered Shops */}
-          <div className="bg-amber-50 border border-amber-100 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
-            <div className="flex items-center space-x-4">
-              <div className="w-11 h-11 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs shrink-0">
-                <Store className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-2xs font-medium text-amber-900/80 uppercase tracking-wider block">Total Registered Shops</span>
-                <div className="text-xl font-semibold text-amber-950 mt-0.5">{totalTenants} Tenants</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {/* Upward Amber Trendline Graphic */}
-              <svg className="w-12 h-6 text-amber-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M2 20 L 15 15 L 30 18 L 48 4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <ChevronRight className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
-
-          {/* Card 2: Active Paid Subscriptions */}
-          <div className="bg-[#ECFDF5] border border-emerald-100 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
-            <div className="flex items-center space-x-4">
-              <div className="w-11 h-11 rounded-2xl bg-[#10B981] text-white flex items-center justify-center shadow-xs shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-2xs font-medium text-emerald-900/80 uppercase tracking-wider block">Active Paid Subscriptions</span>
-                <div className="text-xl font-semibold text-emerald-950 mt-0.5">{activeCount} Shops</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {/* Upward Green Trendline Graphic */}
-              <svg className="w-12 h-6 text-emerald-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M2 20 L 15 15 L 30 18 L 48 4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <ChevronRight className="w-4 h-4 text-emerald-500 group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
-
-          {/* Card 3: Trial Accounts */}
-          <div className="bg-slate-100 border border-slate-200 rounded-3xl p-5 shadow-2xs flex items-center justify-between group hover:shadow-md transition-all relative overflow-hidden">
-            <div className="flex items-center space-x-4">
-              <div className="w-11 h-11 rounded-2xl bg-slate-700 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-2xs font-medium text-slate-700 uppercase tracking-wider block">Trial Accounts</span>
-                <div className="text-xl font-semibold text-slate-950 mt-0.5">{trialCount} Shops</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {/* Upward Slate Trendline Graphic */}
-              <svg className="w-12 h-6 text-slate-500" viewBox="0 0 50 25" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M2 20 L 15 15 L 30 18 L 48 4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
-
-        </div>
-
-        {/* Search & Status Filter Bar matching Screenshot */}
-        <div className="bg-white p-3.5 px-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4 text-xs">
-          
-          {/* Search Input */}
-          <div className="flex items-center gap-2 flex-1 max-w-md bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 focus-within:ring-2 focus-within:ring-amber-400 transition-all">
-            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+        <div className="flex flex-col gap-3 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-3 shadow-[var(--kd-shadow)] lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex max-w-md flex-1 items-center gap-2 rounded-[var(--kd-radius)] border border-border bg-background px-3 py-2">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search shop name, owner, city, or license #..."
+              placeholder="Search shop, owner, city, or license"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-xs font-normal text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
-
-          {/* Status Filter Pills + Create Button */}
-          <div className="flex flex-wrap items-center space-x-2 gap-y-2">
-            <span className="font-medium text-slate-500 uppercase text-2xs mr-1">Status:</span>
+          <div className="flex flex-wrap items-center gap-2">
             {(['all', 'active', 'trial', 'suspended'] as const).map((st) => (
               <button
                 key={st}
+                type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`px-4 py-1.5 rounded-xl font-semibold text-2xs uppercase transition-all cursor-pointer ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize ${
                   statusFilter === st
-                    ? 'bg-slate-950 text-amber-400 shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-[var(--kd-primary-soft)] text-primary'
+                    : 'text-muted-foreground hover:bg-[var(--kd-accent-soft)]'
                 }`}
               >
-                {st === 'all' ? 'All' : st === 'active' ? 'Active' : st === 'trial' ? 'Trial' : 'Suspended'}
+                {st}
               </button>
             ))}
-
             <button
+              type="button"
               onClick={() => {
                 setFormError(null);
                 setIsCreateModalOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-semibold px-3.5 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer ml-2"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Add Shop</span>
+              <Plus className="size-3.5" />
+              Add shop
             </button>
           </div>
         </div>
 
-        {/* Tenant Shop Cards Grid (2 Columns matching Screenshot) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredTenants.map((t) => {
+        <div className="overflow-hidden rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] shadow-[var(--kd-shadow)]">
+        <div className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-2">
+          {filteredTenants.length === 0 && (
+            <p className="col-span-full rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] px-4 py-10 text-center text-sm text-muted-foreground">
+              No shops match this filter.
+            </p>
+          )}
+          {pagination.pageItems.map((t) => {
             const branches = dataStore.getBranches(t.id);
             const featureFlags = t.settings?.features ?? {};
             const enabledCount = Object.values(featureFlags).filter(Boolean).length;
@@ -523,332 +397,225 @@ export default function SuperAdminTenantsPage() {
             const isTrial = t.subscription_status === 'trial';
 
             return (
-              <div
+              <article
                 key={t.id}
-                className={`bg-white border rounded-3xl p-6 shadow-xs hover:shadow-md transition-all space-y-5 flex flex-col justify-between ${
-                  isActive ? 'border-emerald-500 border-t-4' : 'border-amber-400 border-t-4'
-                }`}
+                className="flex flex-col gap-4 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-5 shadow-[var(--kd-shadow)]"
               >
-                <div className="space-y-4">
-                  
-                  {/* Card Header Row matching Screenshot */}
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-10 h-10 rounded-2xl bg-[#DCFCE7] text-[#10B981] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                        <Leaf className="w-5 h-5 fill-[#10B981]" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-semibold text-slate-900 tracking-tight">{t.business_name}</h2>
-                        <p className="text-xs text-slate-600 font-normal mt-0.5">
-                          Owner: <strong className="text-slate-900 font-semibold">{t.owner_name}</strong> &nbsp;|&nbsp; City: <strong className="text-slate-900 font-semibold">{t.city}</strong>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <span
-                      className={`text-2xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider shrink-0 flex items-center gap-1.5 ${
-                        isActive
-                          ? 'bg-[#DCFCE7] text-[#15803D] border border-emerald-300'
-                          : isTrial
-                          ? 'bg-[#FEF3C7] text-[#B45309] border border-amber-300'
-                          : 'bg-red-100 text-red-950 border border-red-300'
-                      }`}
-                    >
-                      <span>{isActive ? '• ACTIVE' : isTrial ? '🕒 TRIAL' : 'SUSPENDED'}</span>
-                    </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold tracking-tight text-foreground">{t.business_name}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t.owner_name} · {t.city}
+                    </p>
                   </div>
-
-                  {/* 4 Soft Pastel Metric Boxes matching Screenshot 1:1 */}
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    
-                    {/* Box 1: Dealer License (Soft Amber) */}
-                    <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-amber-700">
-                        <CreditCard className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-medium uppercase text-slate-500">Dealer License</span>
-                      </div>
-                      <div className="font-semibold text-slate-900 font-mono text-xs">{t.dealer_license_number}</div>
-                    </div>
-
-                    {/* Box 2: License Expiry (Soft Slate) */}
-                    <div className="bg-slate-100 p-3 rounded-2xl border border-slate-200 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-slate-600">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-medium uppercase text-slate-500">License Expiry</span>
-                      </div>
-                      <div className="font-semibold text-slate-900 font-mono text-xs">{t.license_expiry_date}</div>
-                    </div>
-
-                    {/* Box 3: Outlets / Branches (Soft Green) */}
-                    <div className="bg-[#ECFDF5] p-3 rounded-2xl border border-emerald-100 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-emerald-600">
-                        <Store className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-medium uppercase text-slate-500">Outlets / Branches</span>
-                      </div>
-                      <div className="font-semibold text-emerald-950 text-xs">{branches.length} Registered Outlets</div>
-                    </div>
-
-                    {/* Box 4: Feature Toggles (Soft Amber) */}
-                    <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 space-y-1">
-                      <div className="flex items-center space-x-1.5 text-amber-700">
-                        <Settings className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-medium uppercase text-slate-500">Feature Toggles</span>
-                      </div>
-                      <div className="font-semibold text-amber-950 text-xs">{enabledCount} of {totalCount} Enabled</div>
-                    </div>
-
-                  </div>
-
-                  {/* Registered Outlets list */}
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Outlets:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {branches.map((b) => (
-                        <span key={b.id} className="bg-amber-50 text-amber-950 border border-amber-200 text-2xs font-medium px-3 py-1 rounded-xl flex items-center gap-1.5">
-                          <MapPin className="w-3 h-3 text-emerald-600" />
-                          <span>{b.name}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
+                  <StatusBadge status={t.subscription_status} />
                 </div>
 
-                {/* Card Action Buttons matching Screenshot 1:1 */}
-                <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleStatusChange(t.id, 'active')}
-                      className={`px-4 py-2 rounded-xl text-2xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isActive
-                          ? 'bg-[#00875A] text-white shadow-xs'
-                          : 'bg-[#F8FAFC] text-slate-700 border border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                      <span>Set Active</span>
-                    </button>
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-[var(--kd-radius)] bg-background px-3 py-2">
+                    <dt className="text-xs text-muted-foreground">License</dt>
+                    <dd className="mt-0.5 font-medium tabular-nums text-foreground">{t.dealer_license_number}</dd>
+                  </div>
+                  <div className="rounded-[var(--kd-radius)] bg-background px-3 py-2">
+                    <dt className="text-xs text-muted-foreground">Expires</dt>
+                    <dd className="mt-0.5 font-medium tabular-nums text-foreground">{t.license_expiry_date}</dd>
+                  </div>
+                  <div className="rounded-[var(--kd-radius)] bg-[var(--kd-primary-soft)] px-3 py-2">
+                    <dt className="text-xs text-muted-foreground">Outlets</dt>
+                    <dd className="mt-0.5 font-medium text-foreground">{branches.length}</dd>
+                  </div>
+                  <div className="rounded-[var(--kd-radius)] bg-[var(--kd-accent-soft)] px-3 py-2">
+                    <dt className="text-xs text-muted-foreground">Features</dt>
+                    <dd className="mt-0.5 font-medium text-foreground">{enabledCount} of {totalCount}</dd>
+                  </div>
+                </dl>
 
+                <div className="flex flex-wrap gap-2">
+                  {branches.map((b) => (
+                    <span key={b.id} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
+                      <MapPin className="size-3 text-accent" />
+                      {b.name}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => handleStatusChange(t.id, 'trial')}
-                      className={`px-4 py-2 rounded-xl text-2xs font-semibold transition-all cursor-pointer ${
-                        isTrial
-                          ? 'bg-[#F59E0B] text-slate-950 shadow-xs'
-                          : 'bg-[#F8FAFC] text-slate-700 border border-slate-200 hover:bg-slate-100'
-                      }`}
+                      type="button"
+                      onClick={() => handleStatusChange(t.id, 'active')}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium ${isActive ? 'bg-primary text-primary-foreground' : 'border border-border text-foreground'}`}
                     >
-                      Set Trial
+                      Set active
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(t.id, 'trial')}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium ${isTrial ? 'bg-accent text-white' : 'border border-border text-foreground'}`}
+                    >
+                      Set trial
                     </button>
                   </div>
-
-                  <Link
-                    href={`/admin/tenants/${t.id}`}
-                    className="bg-[#051329] hover:bg-[#0B2347] active:bg-[#020A17] text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-                  >
-                    <span>Manage Feature Access</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-white" />
+                  <Link href={`/admin/tenants/${t.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-accent">
+                    Manage access
+                    <ArrowRight className="size-3.5" />
                   </Link>
                 </div>
-
-              </div>
+              </article>
             );
           })}
+        </div>
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          from={pagination.from}
+          to={pagination.to}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
         </div>
 
       </div>
 
       {/* Modal: "+ Create New Tenant" Form */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
             
             {/* Modal Header */}
-            <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900 shrink-0">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
-                  <Plus className="w-6 h-6 stroke-[3]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white tracking-tight">Create New Tenant Shop</h3>
-                  <p className="text-2xs text-slate-400 font-normal">
-                    Register a new shop, owner profile account, dealer license, and outlet configuration
-                  </p>
-                </div>
+            <div className="flex items-center justify-between border-b border-border bg-[var(--kd-surface)] px-5 py-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Create shop</h3>
+                <p className="text-xs text-muted-foreground">Owner, license, and outlet setup</p>
               </div>
-
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setIsCreateModalOpen(false)} className="rounded-full p-1.5 text-muted-foreground hover:bg-background" aria-label="Close">
+                <X className="size-5" />
               </button>
             </div>
 
             {/* Modal Body / Form */}
-            <form onSubmit={handleCreateSubmit} className="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+            <form onSubmit={handleCreateSubmit} className="flex flex-1 flex-col gap-6 overflow-y-auto p-5 text-sm">
               
               {/* Inline Error Alert */}
               {formError && (
-                <div className="p-3.5 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-semibold flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-xs font-semibold text-danger">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-danger" />
                   <span>{formError}</span>
                 </div>
               )}
 
               {/* Section 1: Shop & Owner Basic Details */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <Building2 className="w-4 h-4 text-emerald-600" />
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">1. Shop &amp; Owner Profile</h4>
+                <div className="flex items-center gap-2 border-b border-border pb-2">
+                  <Building2 className="size-4 text-primary" />
+                  <h4 className="text-sm font-medium text-foreground">1. Shop &amp; Owner Profile</h4>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
-                  {/* Shop Business Name */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Shop / Business Name *</label>
-                    <div className="relative">
-                      <Store className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Al-Madina Agri Services"
-                        value={formData.business_name}
-                        onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Shop name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.business_name}
+                      onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
-
-                  {/* Owner Full Name */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Owner Full Name *</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Chaudhry Tariq Mehmood"
-                        value={formData.owner_name}
-                        onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Owner name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.owner_name}
+                      onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
-
-                  {/* Owner Phone */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Owner Phone Number *</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="tel"
-                        required
-                        placeholder="+92 300 1234567"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Phone</label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
-
-                  {/* Owner Email */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Owner Email Address * (For Auth Account)</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="email"
-                        required
-                        placeholder="owner@almadina-agri.pk"
-                        value={formData.owner_email}
-                        onChange={(e) => setFormData({ ...formData, owner_email: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.owner_email}
+                      onChange={(e) => setFormData({ ...formData, owner_email: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
-
-                  {/* City */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">City *</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="Multan, Sahiwal, Faisalabad..."
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">City</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
-
-                  {/* Subscription Status */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Initial Subscription Status</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Subscription</label>
                     <select
                       value={formData.subscription_status}
                       onChange={(e) => setFormData({ ...formData, subscription_status: e.target.value as SubscriptionStatus })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
                     >
-                      <option value="trial">🕒 Trial (30 Days Free)</option>
-                      <option value="active">🟢 Active (Paid Subscription)</option>
-                      <option value="suspended">🔴 Suspended</option>
+                      <option value="trial">Trial</option>
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
                     </select>
                   </div>
-
                 </div>
               </div>
 
               {/* Section 2: Dealer License */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <CreditCard className="w-4 h-4 text-amber-600" />
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">2. Agri Pesticide Dealer License</h4>
+                <div className="flex items-center gap-2 border-b border-border pb-2">
+                  <CreditCard className="size-4 text-primary" />
+                  <h4 className="text-sm font-medium text-foreground">2. Agri Pesticide Dealer License</h4>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Dealer License # */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Dealer License Number * (Must be Unique)</label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. PB-MLT-2026-889"
-                        value={formData.dealer_license_number}
-                        onChange={(e) => setFormData({ ...formData, dealer_license_number: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">License number</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.dealer_license_number}
+                      onChange={(e) => setFormData({ ...formData, dealer_license_number: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
-
-                  {/* License Expiry Date */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">License Expiry Date *</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="date"
-                        required
-                        value={formData.license_expiry_date}
-                        onChange={(e) => setFormData({ ...formData, license_expiry_date: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">License expiry</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.license_expiry_date}
+                      onChange={(e) => setFormData({ ...formData, license_expiry_date: e.target.value })}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
                 </div>
               </div>
 
               {/* Section 3: Branch Setup & Multi-Branch Toggle */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center justify-between border-b border-border pb-2">
                   <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-emerald-600" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">3. Outlets &amp; Branch Setup</h4>
+                    <Store className="size-4 text-primary" />
+                    <h4 className="text-sm font-medium text-foreground">3. Outlets &amp; Branch Setup</h4>
                   </div>
                 </div>
 
@@ -856,14 +623,14 @@ export default function SuperAdminTenantsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div
                     onClick={() => handleBranchSetupChange('single')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
+                    className={`cursor-pointer rounded-2xl border p-3.5 transition-all ${
                       formData.branch_setup === 'single'
-                        ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-400/30'
-                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        ? 'border-primary bg-[var(--kd-primary-soft)] ring-2 ring-[var(--kd-primary-soft)]'
+                        : 'border-border bg-background hover:bg-background'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900 flex items-center gap-2">
+                      <span className="flex items-center gap-2 font-semibold text-foreground">
                         <span>Single Branch Outlet</span>
                       </span>
                       <input
@@ -874,21 +641,18 @@ export default function SuperAdminTenantsPage() {
                         className="w-4 h-4 accent-amber-500"
                       />
                     </div>
-                    <p className="text-2xs text-slate-500 leading-tight font-normal">
-                      One main outlet. Multi-branch features disabled by default for this tenant.
-                    </p>
                   </div>
 
                   <div
                     onClick={() => handleBranchSetupChange('multiple')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-1 ${
+                    className={`cursor-pointer rounded-2xl border p-3.5 transition-all ${
                       formData.branch_setup === 'multiple'
-                        ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/30'
-                        : 'bg-[#F8FAFC] border-slate-200 hover:bg-slate-100'
+                        ? 'border-primary bg-[var(--kd-primary-soft)] ring-2 ring-[var(--kd-primary-soft)]'
+                        : 'border-border bg-background hover:bg-background'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900 flex items-center gap-2">
+                      <span className="flex items-center gap-2 font-semibold text-foreground">
                         <span>Multiple Outlets / Branches</span>
                       </span>
                       <input
@@ -899,18 +663,15 @@ export default function SuperAdminTenantsPage() {
                         className="w-4 h-4 accent-emerald-600"
                       />
                     </div>
-                    <p className="text-2xs text-slate-500 leading-tight font-normal">
-                      2 or more outlets. Multi-branch feature toggle ON by default.
-                    </p>
                   </div>
                 </div>
 
                 {/* Branch Fields List */}
                 <div className="space-y-3 pt-1">
                   {formData.branches.map((b, idx) => (
-                    <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 relative">
+                    <div key={idx} className="relative space-y-3 rounded-2xl border border-border bg-background p-3.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-800 text-2xs uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-foreground">
                           <MapPin className="w-3.5 h-3.5 text-red-500" />
                           <span>Outlet #{idx + 1} Configuration</span>
                         </span>
@@ -919,36 +680,33 @@ export default function SuperAdminTenantsPage() {
                           <button
                             type="button"
                             onClick={() => handleRemoveBranchField(idx)}
-                            className="text-red-500 hover:text-red-700 text-2xs font-semibold flex items-center gap-1 p-1 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                            className="flex cursor-pointer items-center gap-1 rounded-lg p-1 text-2xs font-semibold text-danger transition-colors hover:bg-danger/10"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="size-3.5" />
                             <span>Remove</span>
                           </button>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="block text-2xs font-medium text-slate-700">Branch Name *</label>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-sm font-medium text-foreground">Branch name</label>
                           <input
                             type="text"
                             required
-                            placeholder="e.g. Main Outlet / Grain Market Branch"
                             value={b.name}
                             onChange={(e) => handleBranchInputChange(idx, 'name', e.target.value)}
-                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                            className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
                           />
                         </div>
-
-                        <div className="space-y-1">
-                          <label className="block text-2xs font-medium text-slate-700">Branch Address *</label>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-sm font-medium text-foreground">Address</label>
                           <input
                             type="text"
                             required
-                            placeholder="e.g. Shop #14, Grain Market, Vehari Road"
                             value={b.address}
                             onChange={(e) => handleBranchInputChange(idx, 'address', e.target.value)}
-                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                            className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
                           />
                         </div>
                       </div>
@@ -959,9 +717,9 @@ export default function SuperAdminTenantsPage() {
                     <button
                       type="button"
                       onClick={handleAddBranchField}
-                      className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-semibold border border-dashed border-emerald-300 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-[var(--kd-primary-soft)] py-2 text-xs font-semibold text-primary transition-colors"
                     >
-                      <Plus className="w-4 h-4 text-emerald-700" />
+                      <Plus className="size-4 text-primary" />
                       <span>+ Add Another Branch Outlet</span>
                     </button>
                   )}
@@ -971,37 +729,32 @@ export default function SuperAdminTenantsPage() {
 
               {/* Section 4: Owner Login Credentials */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <KeyRound className="w-4 h-4 text-amber-600" />
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">4. Owner Login Credentials</h4>
-                  <span className="text-2xs text-slate-400 font-normal ml-1">(Login works with username OR email)</span>
+                <div className="flex items-center gap-2 border-b border-border pb-2">
+                  <KeyRound className="size-4 text-primary" />
+                  <h4 className="text-sm font-medium text-foreground">4. Owner Login Credentials</h4>
+                  <span className="ml-1 text-2xs font-normal text-muted-foreground">(Login works with username OR email)</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                   {/* Username */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">
-                      Username * <span className="text-slate-400 font-normal">(4–30 chars, a–z 0–9 . _)</span>
-                    </label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Username</label>
                     <div className="relative">
-                      <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="e.g. tariq.mehmood"
                         value={credForm.username}
                         onChange={(e) => handleUsernameChange(e.target.value)}
-                        className={`w-full pl-9 pr-8 py-2 bg-slate-50 border rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 ${
-                          usernameStatus === 'taken' ? 'border-red-400 focus:ring-red-500/20' :
-                          usernameStatus === 'available' ? 'border-emerald-500 focus:ring-emerald-500/20' :
-                          'border-slate-300 focus:border-emerald-600 focus:ring-emerald-500/20'
+                        className={`h-10 w-full rounded-[var(--kd-radius)] border bg-background px-3 pr-9 text-sm text-foreground outline-none ${
+                          usernameStatus === 'taken' ? 'border-danger' :
+                          usernameStatus === 'available' ? 'border-primary' :
+                          'border-border'
                         }`}
                       />
-                      {/* Status indicator */}
-                      <div className="absolute right-2.5 top-2.5">
-                        {usernameStatus === 'checking' && <RefreshCw className="w-3.5 h-3.5 text-slate-400 animate-spin" />}
-                        {usernameStatus === 'available' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                        {usernameStatus === 'taken' && <X className="w-3.5 h-3.5 text-red-500" />}
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {usernameStatus === 'checking' && <RefreshCw className="size-3.5 animate-spin text-muted-foreground" />}
+                        {usernameStatus === 'available' && <Check className="size-3.5 text-primary" />}
+                        {usernameStatus === 'taken' && <X className="size-3.5 text-danger" />}
                       </div>
                     </div>
                     {usernameStatus === 'taken' && (
@@ -1010,51 +763,43 @@ export default function SuperAdminTenantsPage() {
                       </p>
                     )}
                     {usernameStatus === 'available' && (
-                      <p className="text-emerald-700 text-2xs font-semibold flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Username available
+                      <p className="flex items-center gap-1 text-2xs font-semibold text-primary">
+                        <Check className="size-3" /> Username available
                       </p>
                     )}
                   </div>
 
                   {/* Owner Email (optional for recovery) */}
-                  <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">
-                      Owner Email <span className="text-slate-400 font-normal">(optional — for recovery)</span>
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                      <input
-                        type="email"
-                        placeholder="owner@shop.pk (optional)"
-                        value={credForm.email}
-                        onChange={(e) => setCredForm(prev => ({ ...prev, email: e.target.value }))}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
-                    <p className="text-2xs text-slate-400 font-normal">Login works with username OR email if provided</p>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Recovery email</label>
+                    <input
+                      type="email"
+                      value={credForm.email}
+                      onChange={(e) => setCredForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
+                    />
                   </div>
 
                 </div>
 
                 {/* Password row with generator */}
-                <div className="space-y-1">
-                  <label className="block font-medium text-slate-800">Password *</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground">Password</label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input
                         type={credForm.showPassword ? 'text' : 'password'}
-                        placeholder="Min. 8 characters"
                         value={credForm.password}
                         onChange={(e) => setCredForm(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="h-10 w-full rounded-[var(--kd-radius)] border border-border bg-background px-3 pr-10 text-sm text-foreground outline-none focus:ring-2 focus:ring-[var(--kd-primary-soft)]"
                       />
                       <button
                         type="button"
                         onClick={() => setCredForm(prev => ({ ...prev, showPassword: !prev.showPassword }))}
-                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-700"
+                        className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center text-muted-foreground"
+                        aria-label={credForm.showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {credForm.showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {credForm.showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                       </button>
                     </div>
                     <button
@@ -1063,9 +808,8 @@ export default function SuperAdminTenantsPage() {
                         const pwd = generateStrongPassword();
                         setCredForm(prev => ({ ...prev, password: pwd, showPassword: true }));
                       }}
-                      className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-semibold text-2xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                      className="rounded-[var(--kd-radius)] border border-border px-3 py-2 text-xs font-medium text-foreground"
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
                       Generate
                     </button>
                   </div>
@@ -1088,7 +832,7 @@ export default function SuperAdminTenantsPage() {
                 </div>
 
                 {/* Force password change checkbox */}
-                <label className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors">
+                <label className="flex items-start gap-3 rounded-[var(--kd-radius)] border border-border bg-background p-3">
                   <input
                     type="checkbox"
                     checked={credForm.force_password_change}
@@ -1096,8 +840,8 @@ export default function SuperAdminTenantsPage() {
                     className="mt-0.5 w-4 h-4 accent-amber-500 cursor-pointer"
                   />
                   <div>
-                    <div className="font-semibold text-amber-900 text-xs">Force password change on first login</div>
-                    <div className="text-2xs text-amber-700 font-normal mt-0.5">
+                    <div className="text-xs font-semibold text-foreground">Force password change on first login</div>
+                    <div className="mt-0.5 text-2xs font-normal text-muted-foreground">
                       Owner must set their own password when they first sign in. Recommended ON.
                     </div>
                   </div>
@@ -1106,18 +850,18 @@ export default function SuperAdminTenantsPage() {
               </div>
 
               {/* Modal Footer / Buttons */}
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3 shrink-0">
+              <div className="flex shrink-0 items-center justify-end space-x-3 border-t border-border pt-4">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+                  className="cursor-pointer rounded-xl border border-border bg-background px-5 py-2.5 text-xs font-semibold text-foreground transition-colors"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-[var(--kd-radius)] bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
                 >
                   <Plus className="w-4 h-4" />
                   <span>CREATE TENANT SHOP</span>
@@ -1132,78 +876,73 @@ export default function SuperAdminTenantsPage() {
 
       {/* ── ONE-TIME CREDENTIALS REVEAL CARD ─────────────────────────────── */}
       {credsCard?.open && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
 
             {/* Header */}
-            <div className="bg-slate-950 text-white p-5 px-6 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center shrink-0">
-                <KeyRound className="w-5 h-5 text-slate-950" strokeWidth={2.5} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">Owner Login Credentials — Show Once</h3>
-                <p className="text-2xs text-amber-300 font-medium mt-0.5">⚠️ Copy or share now — this screen will not be shown again</p>
-              </div>
+            <div className="border-b border-border px-5 py-4">
+              <h3 className="text-base font-semibold text-foreground">Shop login</h3>
+              <p className="text-xs text-muted-foreground">Copy these credentials now. They are shown once.</p>
             </div>
 
             {/* Body */}
             <div className="p-6 space-y-5">
 
               {/* Shop name banner */}
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2.5">
-                <Store className="w-4 h-4 text-emerald-700 shrink-0" />
+              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-[var(--kd-primary-soft)] p-3">
+                <Store className="size-4 shrink-0 text-primary" />
                 <div>
-                  <div className="text-2xs font-medium text-emerald-700 uppercase tracking-wider">New Shop Created</div>
-                  <div className="font-semibold text-emerald-950 text-sm">{credsCard.businessName}</div>
+                  <div className="text-2xs font-medium uppercase tracking-wider text-primary">New Shop Created</div>
+                  <div className="text-sm font-semibold text-foreground">{credsCard.businessName}</div>
                 </div>
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 ml-auto shrink-0" />
+                <CheckCircle2 className="ml-auto size-5 shrink-0 text-primary" />
               </div>
 
               {/* Credential rows */}
               <div className="space-y-3">
 
                 {/* Username */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center justify-between rounded-xl border border-border bg-background p-3">
                   <div>
-                    <div className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Username</div>
-                    <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">{credsCard.username}</div>
+                    <div className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">Username</div>
+                    <div className="mt-0.5 font-mono text-sm font-bold text-foreground">{credsCard.username}</div>
                   </div>
                   <button
                     onClick={() => copyToClipboard(credsCard.username, 'Username')}
-                    className="p-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                    className="cursor-pointer rounded-lg border border-border bg-[var(--kd-surface)] p-2 transition-colors"
                     title="Copy username"
                   >
-                    <Copy className="w-4 h-4 text-slate-600" />
+                    <Copy className="h-4 w-4 text-muted-foreground" />
                   </button>
                 </div>
 
                 {/* Password */}
-                <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-center justify-between rounded-xl border border-warning/40 bg-warning/10 p-3">
                   <div>
-                    <div className="text-2xs font-medium uppercase text-amber-700 tracking-wider">Password (Temporary)</div>
-                    <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">{credsCard.password}</div>
+                    <div className="text-2xs font-medium uppercase tracking-wider text-warning">Password (Temporary)</div>
+                    <div className="mt-0.5 font-mono text-sm font-bold text-foreground">{credsCard.password}</div>
                   </div>
                   <button
                     onClick={() => copyToClipboard(credsCard.password, 'Password')}
-                    className="p-2 bg-white hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer"
+                    className="cursor-pointer rounded-lg border border-warning/40 bg-[var(--kd-surface)] p-2 transition-colors"
                     title="Copy password"
                   >
-                    <Copy className="w-4 h-4 text-amber-700" />
+                    <Copy className="size-4 text-warning" />
                   </button>
                 </div>
 
                 {/* Email (if set) */}
                 {credsCard.email && (
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-background p-3">
                     <div>
-                      <div className="text-2xs font-medium uppercase text-slate-500 tracking-wider">Login Email (optional)</div>
-                      <div className="font-mono font-semibold text-slate-900 text-sm mt-0.5">{credsCard.email}</div>
+                      <div className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">Login Email (optional)</div>
+                      <div className="mt-0.5 font-mono text-sm font-semibold text-foreground">{credsCard.email}</div>
                     </div>
                     <button
                       onClick={() => copyToClipboard(credsCard.email, 'Email')}
-                      className="p-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                      className="cursor-pointer rounded-lg border border-border bg-[var(--kd-surface)] p-2 transition-colors"
                     >
-                      <Copy className="w-4 h-4 text-slate-600" />
+                      <Copy className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
                 )}
@@ -1211,8 +950,8 @@ export default function SuperAdminTenantsPage() {
               </div>
 
               {/* Force change note */}
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+              <div className="flex items-start gap-2 rounded-xl border border-border bg-background p-3 text-xs font-medium text-muted-foreground">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />
                 <span>The owner will be prompted to change their password on first login. Share these credentials securely.</span>
               </div>
 
@@ -1233,9 +972,9 @@ export default function SuperAdminTenantsPage() {
                   showToast(`Tenant '${credsCard.businessName}' created. Credentials saved.`, 'success');
                   router.push(`/admin/tenants/${credsCard.tenantId}`);
                 }}
-                className="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-xs font-semibold text-primary-foreground transition-colors"
               >
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <ShieldCheck className="size-4 text-primary" />
                 I've saved these credentials →
               </button>
             </div>

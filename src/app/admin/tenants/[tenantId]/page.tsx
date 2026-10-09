@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminShell from '@/components/layout/AdminShell';
 import { dataStore } from '@/lib/data-store';
+import { updateTenantFeature } from '@/actions/admin';
 import {
   Store,
   ChevronRight,
@@ -48,6 +49,8 @@ import {
 } from 'lucide-react';
 import { SubscriptionStatus, Tenant, TenantBillingTerms, TenantPaymentRecord } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
+import { usePagination } from '@/hooks/usePagination';
+import Pagination from '@/components/ui/Pagination';
 
 export interface TenantFeatureFlags {
   pos: boolean;
@@ -275,6 +278,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
   // Billing & Commercial Terms state for this tenant
   const [billingTerms, setBillingTerms] = useState<TenantBillingTerms>(() => dataStore.getBillingTerms(tenantId));
   const [tenantPayments, setTenantPayments] = useState<TenantPaymentRecord[]>(() => dataStore.getTenantPayments(tenantId));
+  const paymentsPagination = usePagination(tenantPayments, 10);
+  const auditPagination = usePagination(credAuditLog, 10);
 
   // Modal states
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -602,152 +607,117 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
     showToast(`Subscription status for ${tenant.business_name} updated to ${newStatus.toUpperCase()}`, 'success');
   };
 
-  const handleToggleFeature = (featureKey: keyof TenantFeatureFlags) => {
+  const handleToggleFeature = async (featureKey: keyof TenantFeatureFlags) => {
     const nextState = !features[featureKey];
     const updatedFeatures = { ...features, [featureKey]: nextState };
+    const persist = (flags: TenantFeatureFlags) => {
+      dataStore.updateTenantSettings(tenant.id, {
+        branch_mode: flags.multi_branch ? 'consolidated' : 'independent',
+        features: flags,
+      });
+    };
     setFeatures(updatedFeatures);
+    persist(updatedFeatures);
 
-    // Save strictly for THIS tenantId
-    dataStore.updateTenantSettings(tenant.id, {
-      branch_mode: updatedFeatures.multi_branch ? 'consolidated' : 'independent',
-      features: updatedFeatures,
-    });
+    const savedToShop = ['multi_branch', 'schemes', 'purchases', 'suppliers', 'reports'] as const;
+    if ((savedToShop as readonly string[]).includes(featureKey)) {
+      const res = await updateTenantFeature(
+        tenant.id,
+        featureKey as (typeof savedToShop)[number],
+        nextState,
+        tenant.id,
+      );
+      if (!res.success) {
+        const reverted = { ...updatedFeatures, [featureKey]: !nextState };
+        setFeatures(reverted);
+        persist(reverted);
+        showToast(res.error || 'Could not save this access on the shop.', 'error');
+        return;
+      }
+    }
 
     showToast(
-      `[${tenant.business_name}] Feature flag '${featureKey.replace('_', ' ').toUpperCase()}' set to ${nextState ? 'ENABLED' : 'DISABLED'}`,
+      `${tenant.business_name}: ${featureKey.replaceAll('_', ' ')} is ${nextState ? 'on' : 'off'}`,
       nextState ? 'success' : 'info'
     );
   };
 
   return (
     <AdminShell>
-      <div className="space-y-7">
-
-        {/* Page Header with Back Button */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <nav className="flex items-center gap-1.5 text-2xs font-medium text-slate-400 mb-1">
-              <Link href="/admin/tenants" className="hover:underline text-slate-500">Registered Tenant Shops</Link>
-              <ChevronRight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-              <span className="text-slate-900 font-semibold">{tenant.business_name}</span>
-            </nav>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <nav className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Link href="/admin/tenants" className="hover:text-foreground">Registered shops</Link>
+            <ChevronRight className="size-3" />
+            <span className="text-foreground">{tenant.business_name}</span>
+          </nav>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Link
-                href="/admin/tenants"
-                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors border border-slate-300"
-              >
-                <ArrowLeft className="w-4 h-4" />
+              <Link href="/admin/tenants" className="rounded-[var(--kd-radius)] border border-border p-2 text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="size-4" />
               </Link>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                {tenant.business_name}
-              </h1>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{tenant.business_name}</h1>
+                <p className="text-sm text-muted-foreground">{tenant.owner_name} · {tenant.city}</p>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 font-normal mt-1">
-              Per-tenant server-enforced feature module toggles, outlet settings, and license configuration (ID: <code className="font-mono text-emerald-800">{tenant.id}</code>)
-            </p>
+            <div className="flex rounded-full border border-border bg-[var(--kd-surface)] p-1 text-xs">
+              {(['active', 'trial', 'suspended'] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleStatusChange(key)}
+                  className={`rounded-full px-3 py-1.5 font-medium capitalize ${status === key ? 'bg-[var(--kd-primary-soft)] text-primary' : 'text-muted-foreground'}`}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Tenant Business Details Card */}
-        <div className="bg-gradient-to-br from-slate-50/90 via-white to-emerald-50/30 border border-slate-200 rounded-2xl p-6 shadow-card space-y-6">
+        <div className="space-y-6 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-5 shadow-[var(--kd-shadow)]">
           
-          {/* Header Row */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-semibold text-slate-900">{tenant.business_name}</h2>
-                <span className={`text-2xs font-semibold px-3 py-1 rounded-md shadow-sm border ${
-                  status === 'active'
-                    ? 'bg-emerald-600 text-white border-emerald-700'
-                    : status === 'trial'
-                    ? 'bg-amber-500 text-slate-950 border-amber-600'
-                    : 'bg-red-600 text-white border-red-700'
-                }`}>
-                  SUBSCRIPTION: {status.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 font-normal mt-1">
-                Owner: <strong className="text-slate-900 font-semibold">{tenant.owner_name}</strong> | City: <strong className="text-slate-900 font-semibold">{tenant.city}</strong> | Phone: <strong className="text-slate-900 font-semibold">{tenant.phone}</strong>
-              </p>
-            </div>
-
-            {/* Status Switcher */}
-            <div className="flex items-center space-x-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-2xs font-medium uppercase text-slate-500 px-2">Subscription:</span>
-              <button
-                onClick={() => handleStatusChange('active')}
-                className={`px-3 py-1.5 rounded-lg text-2xs font-semibold transition-all cursor-pointer ${
-                  status === 'active'
-                    ? 'bg-emerald-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                ACTIVE
-              </button>
-
-              <button
-                onClick={() => handleStatusChange('trial')}
-                className={`px-3 py-1.5 rounded-lg text-2xs font-semibold transition-all cursor-pointer ${
-                  status === 'trial'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                TRIAL
-              </button>
-
-              <button
-                onClick={() => handleStatusChange('suspended')}
-                className={`px-3 py-1.5 rounded-lg text-2xs font-semibold transition-all cursor-pointer ${
-                  status === 'suspended'
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                SUSPENDED
-              </button>
-            </div>
-          </div>
-
           {/* Section Selector Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl gap-1 text-xs font-semibold max-w-4xl">
+          <div className="flex flex-wrap gap-1 rounded-[var(--kd-radius)] border border-border bg-background p-1 text-sm">
             <button
               onClick={() => setActiveTab('features')}
-              className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'features' ? 'bg-slate-950 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
+              className={`whitespace-nowrap rounded-lg px-3 py-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'features' ? 'bg-[var(--kd-primary-soft)] text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+              <SlidersHorizontal className="size-4" />
               <span>Feature Access (Toggles)</span>
             </button>
 
             <button
               onClick={() => setActiveTab('details')}
-              className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'details' ? 'bg-slate-950 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
+              className={`whitespace-nowrap rounded-lg px-3 py-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'details' ? 'bg-[var(--kd-primary-soft)] text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Store className="w-4 h-4 text-amber-400" />
+              <Store className="size-4" />
               <span>Outlets &amp; License</span>
             </button>
 
             <button
               onClick={() => setActiveTab('billing')}
-              className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'billing' ? 'bg-slate-950 text-amber-400 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
+              className={`whitespace-nowrap rounded-lg px-3 py-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'billing' ? 'bg-[var(--kd-primary-soft)] text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <CreditCard className="w-4 h-4 text-amber-400" />
+              <CreditCard className="size-4" />
               <span>Billing &amp; Commercial Terms</span>
             </button>
 
             <button
               onClick={() => setActiveTab('credentials')}
-              className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'credentials' ? 'bg-slate-950 text-amber-400 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
+              className={`whitespace-nowrap rounded-lg px-3 py-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'credentials' ? 'bg-[var(--kd-primary-soft)] text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <KeyRound className="w-4 h-4 text-amber-400" />
+              <KeyRound className="size-4" />
               <span>Login &amp; Access</span>
             </button>
           </div>
@@ -756,45 +726,45 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
             <div className="space-y-6 animate-fade-in-up">
               {/* License & Verification Panel */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-2xs font-medium uppercase text-slate-500">Agri-Input Dealer License</span>
-                  <div className="text-sm font-semibold text-amber-700 font-mono">{tenant.dealer_license_number}</div>
-                  <span className="text-[11px] text-slate-500 font-normal block">Punjab Agriculture Dept Verified</span>
+                <div className="bg-background p-4 rounded-xl border border-border space-y-1">
+                  <span className="text-2xs font-medium uppercase text-muted-foreground">Agri-Input Dealer License</span>
+                  <div className="text-sm font-semibold text-warning font-mono">{tenant.dealer_license_number}</div>
+                  <span className="text-[11px] text-muted-foreground font-normal block">Punjab Agriculture Dept Verified</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-2xs font-medium uppercase text-slate-500">License Expiry Date</span>
-                  <div className="text-sm font-semibold text-slate-900 font-mono">{tenant.license_expiry_date}</div>
-                  <span className="text-[11px] text-emerald-800 font-semibold block">Valid License Registered</span>
+                <div className="bg-background p-4 rounded-xl border border-border space-y-1">
+                  <span className="text-2xs font-medium uppercase text-muted-foreground">License Expiry Date</span>
+                  <div className="text-sm font-semibold text-foreground font-mono">{tenant.license_expiry_date}</div>
+                  <span className="text-[11px] text-success font-semibold block">Valid License Registered</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-2xs font-medium uppercase text-slate-500">Branch Mode</span>
-                  <div className="text-sm font-semibold text-slate-900 uppercase">{tenant.settings.branch_mode}</div>
-                  <span className="text-[11px] text-slate-500 font-normal block">Multi-Outlet Inventory Sync</span>
+                <div className="bg-background p-4 rounded-xl border border-border space-y-1">
+                  <span className="text-2xs font-medium uppercase text-muted-foreground">Branch Mode</span>
+                  <div className="text-sm font-semibold text-foreground uppercase">{tenant.settings.branch_mode}</div>
+                  <span className="text-[11px] text-muted-foreground font-normal block">Multi-Outlet Inventory Sync</span>
                 </div>
               </div>
 
               {/* Registered Branch Outlets */}
               <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                  <Store className="w-4 h-4 text-emerald-700" />
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                  <Store className="w-4 h-4 text-success" />
                   <span>Registered Branch Outlets ({branches.length})</span>
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {branches.map((b) => (
-                    <div key={b.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm space-y-2">
+                    <div key={b.id} className="p-4 bg-background border border-border rounded-xl space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="font-semibold text-slate-900 text-sm">{b.name}</div>
-                          <div className="text-xs text-slate-500 font-normal">{b.address}</div>
+                          <div className="font-semibold text-foreground text-sm">{b.name}</div>
+                          <div className="text-xs text-muted-foreground font-normal">{b.address}</div>
                         </div>
-                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        <span className="border border-success/30 bg-success/15 text-success text-[10px] font-semibold px-2 py-0.5 rounded-full">
                           ACTIVE OUTLET
                         </span>
                       </div>
-                      <div className="text-2xs text-slate-500 font-mono pt-2 border-t border-slate-100 flex justify-between">
+                      <div className="text-2xs text-muted-foreground font-mono pt-2 border-t border-border flex justify-between">
                         <span>Contact: {b.phone}</span>
                         <span>ID: {b.id}</span>
                       </div>
@@ -808,23 +778,23 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
             <div className="space-y-6 animate-fade-in-up">
 
               {/* Top Commercial Terms Overview Card */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              <div className="bg-background p-6 rounded-2xl border border-border space-y-6">
 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border pb-4">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
-                      <CreditCard className="w-5 h-5 text-amber-600" />
-                      <h3 className="text-base font-semibold text-slate-900">
+                      <CreditCard className="size-5 text-primary" />
+                      <h3 className="text-base font-semibold text-foreground">
                         Billing &amp; Commercial Terms
                       </h3>
                       {billingTerms.recurring_interval_months !== null && (
-                        <span className="bg-amber-100 text-amber-900 border border-amber-300 text-2xs font-semibold px-2.5 py-0.5 rounded-full uppercase">
+                        <span className="border border-warning/40 bg-warning/15 text-warning text-2xs font-semibold px-2.5 py-0.5 rounded-full uppercase">
                           {getIntervalLabel(billingTerms.recurring_interval_months)}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 font-normal">
-                      Installation charge, recurring fee, and payment history for <strong className="text-slate-900">{tenant.business_name}</strong>
+                    <p className="text-xs text-muted-foreground font-normal">
+                      Installation charge, recurring fee, and payment history for <strong className="text-foreground">{tenant.business_name}</strong>
                     </p>
                   </div>
 
@@ -843,9 +813,9 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         });
                         setIsEditTermsModalOpen(true);
                       }}
-                      className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-semibold text-xs px-4 py-2.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="bg-background hover:bg-[var(--kd-primary-soft)] text-foreground border border-border font-semibold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
                     >
-                      <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+                      <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
                       <span>Edit Terms</span>
                     </button>
 
@@ -861,10 +831,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         });
                         setIsPaymentModalOpen(true);
                       }}
-                      className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground transition-all"
                     >
-                      <Plus className="w-4 h-4 stroke-[3]" />
-                      <span>+ Log Payment</span>
+                      <Plus className="size-3.5" />
+                      <span>Log Payment</span>
                     </button>
                   </div>
                 </div>
@@ -873,46 +843,46 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                   {/* Box 1: Installation Charge (one-time) */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="bg-background p-4 rounded-xl border border-border space-y-1.5">
                     <div className="flex items-center gap-1.5">
-                      <Wrench className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-2xs font-medium uppercase text-slate-500">Installation (One-Time)</span>
+                      <Wrench className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-2xs font-medium uppercase text-muted-foreground">Installation (One-Time)</span>
                     </div>
-                    <div className="text-sm font-semibold text-slate-900 font-mono">
+                    <div className="text-sm font-semibold text-foreground font-mono">
                       {billingTerms.installation_charges > 0
                         ? `Rs. ${billingTerms.installation_charges.toLocaleString()}`
-                        : <span className="text-slate-400 font-normal text-xs">No installation charge</span>
+                        : <span className="text-muted-foreground font-normal text-xs">No installation charge</span>
                       }
                     </div>
-                    <div className="text-xs text-slate-500 font-normal">
+                    <div className="text-xs text-muted-foreground font-normal">
                       {billingTerms.installation_date
                         ? `Installed: ${billingTerms.installation_date}`
-                        : <span className="text-slate-400">No date set</span>
+                        : <span className="text-muted-foreground">No date set</span>
                       }
                     </div>
-                    <span className="inline-block text-[10px] font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 rounded uppercase">One-Time Only — Never Recurring</span>
+                    <span className="inline-block text-[10px] font-semibold px-2 py-0.5 bg-border text-foreground rounded uppercase">One-Time Only — Never Recurring</span>
                   </div>
 
                   {/* Box 2: Recurring Charge */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="bg-background p-4 rounded-xl border border-border space-y-1.5">
                     <div className="flex items-center gap-1.5">
-                      <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
-                      <span className="text-2xs font-medium uppercase text-slate-500">Recurring Charge</span>
+                      <RefreshCw className="size-3.5 text-muted-foreground" />
+                      <span className="text-2xs font-medium uppercase text-muted-foreground">Recurring Charge</span>
                     </div>
                     {billingTerms.recurring_interval_months !== null ? (
                       <>
-                        <div className="text-sm font-semibold text-amber-700 font-mono">
+                        <div className="text-sm font-semibold text-warning font-mono">
                           Rs. {billingTerms.recurring_amount.toLocaleString()}
                         </div>
-                        <div className="text-xs font-semibold text-slate-600 uppercase">
+                        <div className="text-xs font-semibold text-muted-foreground uppercase">
                           {getIntervalLabel(billingTerms.recurring_interval_months)}
                         </div>
                         {billingTerms.first_recurring_date && (
-                          <div className="text-[11px] text-slate-500 font-normal">Start date: {billingTerms.first_recurring_date}</div>
+                          <div className="text-[11px] text-muted-foreground font-normal">Start date: {billingTerms.first_recurring_date}</div>
                         )}
                       </>
                     ) : (
-                      <div className="text-sm text-slate-400 font-normal">No recurring charge set</div>
+                      <div className="text-sm text-muted-foreground font-normal">No recurring charge set</div>
                     )}
                   </div>
 
@@ -928,18 +898,18 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     return (
                       <div className={`p-4 rounded-xl border space-y-1.5 ${
                         isNone
-                          ? 'bg-slate-50 border-slate-200 text-slate-500'
+                          ? 'bg-background border-border text-muted-foreground'
                           : isOverdue
-                          ? 'bg-red-50/90 border-red-300 text-red-950'
+                          ? 'border-danger/40 bg-danger/10 text-danger'
                           : isDueSoon
-                          ? 'bg-amber-50/90 border-amber-300 text-amber-950'
-                          : 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                          ? 'border-warning/40 bg-warning/10 text-warning'
+                          : 'border-success/40 bg-success/10 text-success'
                       }`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-2xs font-medium uppercase text-slate-600">Next Due Date</span>
+                          <span className="text-2xs font-medium uppercase text-muted-foreground">Next Due Date</span>
                           {!isNone && (
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                              isOverdue ? 'bg-red-600 text-white' : isDueSoon ? 'bg-amber-400 text-slate-950' : 'bg-emerald-600 text-white'
+                              isOverdue ? 'bg-danger text-white' : isDueSoon ? 'bg-warning text-primary-foreground' : 'bg-success text-white'
                             }`}>
                               {dueStatus.text}
                             </span>
@@ -948,7 +918,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         <div className="text-sm font-semibold font-mono">
                           {billingTerms.next_due_date ?? '—'}
                         </div>
-                        <p className="text-[11px] text-slate-600 font-normal">
+                        <p className="text-[11px] text-muted-foreground font-normal">
                           {isNone ? 'No recurring charge configured'
                             : isOverdue ? 'Overdue — log payment to clear'
                             : isDueSoon ? 'Due window active (bell notified)'
@@ -961,10 +931,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 </div>
 
                 {billingTerms.notes && (
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 font-normal flex items-start gap-2">
-                    <FileText className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                  <div className="p-3.5 bg-background border border-border rounded-xl text-xs text-muted-foreground font-normal flex items-start gap-2">
+                    <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-slate-900 font-semibold">Terms Note:</strong> {billingTerms.notes}
+                      <strong className="text-foreground font-semibold">Terms Note:</strong> {billingTerms.notes}
                     </div>
                   </div>
                 )}
@@ -972,23 +942,23 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               </div>
 
               {/* Payment Ledger History Table (100% Tenant Isolated) */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="bg-background rounded-2xl border border-border p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
                   <div className="flex items-center space-x-2.5">
-                    <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                    <div className="p-2 bg-success/15 text-success rounded-xl">
                       <History className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-slate-900">
+                      <h3 className="text-base font-semibold text-foreground">
                         Payment Received History — {tenant.business_name}
                       </h3>
-                      <p className="text-2xs text-slate-500 font-normal">
-                        Showing all recorded payments strictly for Tenant ID: <code className="font-mono text-emerald-800">{tenant.id}</code>
+                      <p className="text-2xs text-muted-foreground font-normal">
+                        Showing all recorded payments strictly for Tenant ID: <code className="font-mono text-success">{tenant.id}</code>
                       </p>
                     </div>
                   </div>
 
-                  <span className="bg-slate-950 text-amber-400 text-2xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-xs">
+                  <span className="bg-accent/15 text-accent text-2xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-xs">
                     Tenant Isolated Ledger
                   </span>
                 </div>
@@ -996,7 +966,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider font-semibold">
+                      <tr className="border-b border-border bg-background text-muted-foreground uppercase text-[10px] tracking-wider font-semibold">
                         <th className="py-3 px-4">Payment Date</th>
                         <th className="py-3 px-4">Type</th>
                         <th className="py-3 px-4">Amount</th>
@@ -1006,39 +976,39 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         <th className="py-3 px-4">Notes</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-normal text-slate-800">
+                    <tbody className="divide-y divide-border font-normal text-foreground">
                       {tenantPayments.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-slate-400 font-normal">
+                          <td colSpan={7} className="py-8 text-center text-muted-foreground font-normal">
                             No payment records logged yet. Use "+ Log Payment" to record a payment.
                           </td>
                         </tr>
                       ) : (
-                        tenantPayments.map((p) => (
-                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-3 px-4 font-mono font-semibold text-slate-900">{p.payment_date}</td>
+                        paymentsPagination.pageItems.map((p) => (
+                          <tr key={p.id} className="hover:bg-[var(--kd-primary-soft)] transition-colors">
+                            <td className="py-3 px-4 font-mono font-semibold text-foreground">{p.payment_date}</td>
                             <td className="py-3 px-4">
                               <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase ${
                                 p.payment_type === 'recurring'
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  ? 'border border-success/30 bg-success/15 text-success'
+                                  : 'border border-accent/30 bg-accent/15 text-accent'
                               }`}>
                                 {p.payment_type === 'recurring' ? '↻ Recurring' : '🔧 Installation'}
                               </span>
                             </td>
-                            <td className="py-3 px-4 font-semibold text-emerald-700 font-mono">
+                            <td className="py-3 px-4 font-semibold text-success font-mono">
                               Rs. {p.amount.toLocaleString()}
                             </td>
-                            <td className="py-3 px-4 capitalize font-medium text-slate-700">
+                            <td className="py-3 px-4 capitalize font-medium text-foreground">
                               {p.payment_method.replace('_', ' ')}
                             </td>
-                            <td className="py-3 px-4 font-mono text-slate-600">
+                            <td className="py-3 px-4 font-mono text-muted-foreground">
                               {p.reference_number || '—'}
                             </td>
-                            <td className="py-3 px-4 text-slate-600 font-medium">
+                            <td className="py-3 px-4 text-muted-foreground font-medium">
                               {p.received_by || 'Super Admin'}
                             </td>
-                            <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
+                            <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">
                               {p.notes || '—'}
                             </td>
                           </tr>
@@ -1047,6 +1017,16 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  page={paymentsPagination.page}
+                  totalPages={paymentsPagination.totalPages}
+                  totalItems={paymentsPagination.totalItems}
+                  from={paymentsPagination.from}
+                  to={paymentsPagination.to}
+                  pageSize={paymentsPagination.pageSize}
+                  onPageChange={paymentsPagination.setPage}
+                  onPageSizeChange={paymentsPagination.setPageSize}
+                />
               </div>
 
             </div>
@@ -1055,21 +1035,21 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
             <div className="space-y-6 animate-fade-in-up">
 
               {/* Owner Account & Credentials Card */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              <div className="bg-background p-6 rounded-2xl border border-border space-y-6">
                 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border pb-4">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
-                      <KeyRound className="w-5 h-5 text-amber-600" />
-                      <h3 className="text-base font-semibold text-slate-900">
+                      <KeyRound className="size-5 text-primary" />
+                      <h3 className="text-base font-semibold text-foreground">
                         Login Credential Management
                       </h3>
-                      <span className="bg-amber-100 text-amber-900 border border-amber-300 text-2xs font-semibold px-2.5 py-0.5 rounded-full uppercase">
+                      <span className="border border-warning/40 bg-warning/15 text-warning text-2xs font-semibold px-2.5 py-0.5 rounded-full uppercase">
                         Owner Auth Access
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 font-normal">
-                      Manage username, password, login status, and active sessions for <strong className="text-slate-900">{tenant.business_name}</strong>
+                    <p className="text-xs text-muted-foreground font-normal">
+                      Manage username, password, login status, and active sessions for <strong className="text-foreground">{tenant.business_name}</strong>
                     </p>
                   </div>
                 </div>
@@ -1078,55 +1058,55 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                   {/* Username */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
-                    <span className="text-2xs font-medium uppercase text-slate-500 block">Username</span>
-                    <div className="text-sm font-bold text-slate-900 font-mono">
-                      {ownerProfile?.username ? `@${ownerProfile.username}` : <span className="text-slate-400 font-normal">Not configured</span>}
+                  <div className="bg-background p-4 rounded-xl border border-border space-y-1">
+                    <span className="text-2xs font-medium uppercase text-muted-foreground block">Username</span>
+                    <div className="text-sm font-bold text-foreground font-mono">
+                      {ownerProfile?.username ? `@${ownerProfile.username}` : <span className="text-muted-foreground font-normal">Not configured</span>}
                     </div>
-                    <span className="text-[11px] text-slate-500 block">Unique Platform Identifier</span>
+                    <span className="text-[11px] text-muted-foreground block">Unique Platform Identifier</span>
                   </div>
 
                   {/* Email */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
-                    <span className="text-2xs font-medium uppercase text-slate-500 block">Recovery Email</span>
-                    <div className="text-sm font-semibold text-slate-900 font-mono truncate">
-                      {ownerProfile?.email || <span className="text-slate-400 font-normal">No email set</span>}
+                  <div className="bg-background p-4 rounded-xl border border-border space-y-1">
+                    <span className="text-2xs font-medium uppercase text-muted-foreground block">Recovery Email</span>
+                    <div className="text-sm font-semibold text-foreground font-mono truncate">
+                      {ownerProfile?.email || <span className="text-muted-foreground font-normal">No email set</span>}
                     </div>
-                    <span className="text-[11px] text-slate-500 block">Optional Recovery Contact</span>
+                    <span className="text-[11px] text-muted-foreground block">Optional Recovery Contact</span>
                   </div>
 
                   {/* Account Status */}
                   <div className={`p-4 rounded-xl border space-y-1 ${
-                    ownerProfile?.account_disabled_at ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'
+                    ownerProfile?.account_disabled_at ? 'border-danger/40 bg-danger/10' : 'border-success/40 bg-success/10'
                   }`}>
-                    <span className="text-2xs font-medium uppercase text-slate-600 block">Account Status</span>
+                    <span className="text-2xs font-medium uppercase text-muted-foreground block">Account Status</span>
                     <div className="flex items-center gap-1.5">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${
-                        ownerProfile?.account_disabled_at ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
+                        ownerProfile?.account_disabled_at ? 'bg-danger text-white' : 'bg-success text-white'
                       }`}>
                         {ownerProfile?.account_disabled_at ? 'DISABLED' : 'ACTIVE'}
                       </span>
                     </div>
-                    <span className="text-[11px] text-slate-600 block">
+                    <span className="text-[11px] text-muted-foreground block">
                       {ownerProfile?.account_disabled_at ? `Disabled: ${new Date(ownerProfile.account_disabled_at).toLocaleDateString()}` : 'Can log in & use platform'}
                     </span>
                   </div>
 
                   {/* Password & Session Flags */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
-                    <span className="text-2xs font-medium uppercase text-slate-500 block">Security Flags</span>
+                  <div className="bg-background p-4 rounded-xl border border-border space-y-1">
+                    <span className="text-2xs font-medium uppercase text-muted-foreground block">Security Flags</span>
                     <div className="space-y-1">
                       {ownerProfile?.force_password_change ? (
-                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded uppercase">
+                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 border border-warning/40 bg-warning/15 text-warning rounded uppercase">
                           Force Pwd Change On Login
                         </span>
                       ) : (
-                        <span className="inline-block text-[10px] font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 rounded uppercase">
+                        <span className="inline-block text-[10px] font-semibold px-2 py-0.5 bg-border text-foreground rounded uppercase">
                           Standard Credentials
                         </span>
                       )}
                       {ownerProfile?.sessions_invalidated_at && (
-                        <span className="text-[10px] text-slate-500 block font-mono">
+                        <span className="text-[10px] text-muted-foreground block font-mono">
                           Invalidated: {new Date(ownerProfile.sessions_invalidated_at).toLocaleDateString()}
                         </span>
                       )}
@@ -1136,8 +1116,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 </div>
 
                 {/* 4 Action Buttons Grid */}
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Security Actions</h4>
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Security Actions</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 
                     {/* Action 1: Reset Password */}
@@ -1146,13 +1126,13 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         setResetPasswordForm({ password: '', showPassword: false, forceChange: true });
                         setIsResetPasswordOpen(true);
                       }}
-                      className="p-3 bg-amber-50/80 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer shadow-2xs"
+                      className="p-3 border border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <KeyRound className="w-4 h-4 text-amber-700" />
+                        <KeyRound className="w-4 h-4 text-warning" />
                         <span>Reset Password</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-amber-600" />
+                      <ChevronRight className="w-4 h-4 text-warning" />
                     </button>
 
                     {/* Action 2: Change Username */}
@@ -1161,13 +1141,13 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         setChangeUsernameForm({ username: ownerProfile?.username || '', status: 'idle' });
                         setIsChangeUsernameOpen(true);
                       }}
-                      className="p-3 bg-blue-50/80 hover:bg-blue-100 text-blue-950 border border-blue-300 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer shadow-2xs"
+                      className="p-3 border border-accent/40 bg-accent/10 text-accent hover:bg-accent/15 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <Edit3 className="w-4 h-4 text-blue-700" />
+                        <Edit3 className="w-4 h-4 text-accent" />
                         <span>Change Username</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-blue-600" />
+                      <ChevronRight className="w-4 h-4 text-accent" />
                     </button>
 
                     {/* Action 3: Disable / Enable Account */}
@@ -1176,21 +1156,21 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         setDisableAccountReason('');
                         setIsDisableAccountOpen(true);
                       }}
-                      className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer shadow-2xs border ${
+                      className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border ${
                         ownerProfile?.account_disabled_at
-                          ? 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-950 border-emerald-300'
-                          : 'bg-red-50/80 hover:bg-red-100 text-red-950 border-red-300'
+                          ? 'border-success/40 bg-success/10 text-success hover:bg-success/15'
+                          : 'border-danger/40 bg-danger/10 text-danger hover:bg-danger/15'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         {ownerProfile?.account_disabled_at ? (
                           <>
-                            <UserCheck className="w-4 h-4 text-emerald-700" />
+                            <UserCheck className="w-4 h-4 text-success" />
                             <span>Enable Account</span>
                           </>
                         ) : (
                           <>
-                            <UserX className="w-4 h-4 text-red-700" />
+                            <UserX className="w-4 h-4 text-danger" />
                             <span>Disable Account</span>
                           </>
                         )}
@@ -1201,13 +1181,13 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     {/* Action 4: Sign Out All Sessions */}
                     <button
                       onClick={() => setIsSignOutAllOpen(true)}
-                      className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer shadow-2xs"
+                      className="p-3 bg-background hover:bg-[var(--kd-primary-soft)] text-foreground border border-border rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <LogOut className="w-4 h-4 text-slate-700" />
+                        <LogOut className="w-4 h-4 text-foreground" />
                         <span>Sign Out All Sessions</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
 
                   </div>
@@ -1216,23 +1196,23 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               </div>
 
               {/* Credential Audit Log Table */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="bg-background rounded-2xl border border-border p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
                   <div className="flex items-center space-x-2.5">
-                    <div className="p-2 bg-amber-100 text-amber-900 rounded-xl">
+                    <div className="p-2 bg-warning/15 text-warning rounded-xl">
                       <ShieldCheck className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-slate-900">
+                      <h3 className="text-base font-semibold text-foreground">
                         Platform Credential Audit Log
                       </h3>
-                      <p className="text-2xs text-slate-500 font-normal">
+                      <p className="text-2xs text-muted-foreground font-normal">
                         Security audit history of credential changes, password resets, and login status changes.
                       </p>
                     </div>
                   </div>
 
-                  <span className="bg-slate-950 text-amber-400 text-2xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-xs">
+                  <span className="bg-accent/15 text-accent text-2xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-xs">
                     Immutable Audit Log
                   </span>
                 </div>
@@ -1240,35 +1220,35 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider font-semibold">
+                      <tr className="border-b border-border bg-background text-muted-foreground uppercase text-[10px] tracking-wider font-semibold">
                         <th className="py-3 px-4">Timestamp</th>
                         <th className="py-3 px-4">Action</th>
                         <th className="py-3 px-4">Details / Notes</th>
                         <th className="py-3 px-4">Performed By</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-normal text-slate-800">
+                    <tbody className="divide-y divide-border font-normal text-foreground">
                       {credAuditLog.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-slate-400 font-normal">
+                          <td colSpan={4} className="py-8 text-center text-muted-foreground font-normal">
                             No credential security events recorded yet.
                           </td>
                         </tr>
                       ) : (
-                        credAuditLog.map((log) => {
+                        auditPagination.pageItems.map((log) => {
                           const actionColors: Record<string, string> = {
-                            RESET_PASSWORD: 'bg-amber-100 text-amber-900 border-amber-300',
-                            CHANGE_USERNAME: 'bg-blue-100 text-blue-900 border-blue-300',
-                            DISABLE_ACCOUNT: 'bg-red-100 text-red-900 border-red-300',
-                            ENABLE_ACCOUNT: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-                            SIGN_OUT_ALL: 'bg-purple-100 text-purple-900 border-purple-300',
-                            CREATED: 'bg-slate-100 text-slate-900 border-slate-300',
+                            RESET_PASSWORD: 'border border-warning/40 bg-warning/15 text-warning',
+                            CHANGE_USERNAME: 'border border-accent/40 bg-accent/15 text-accent',
+                            DISABLE_ACCOUNT: 'border border-danger/40 bg-danger/15 text-danger',
+                            ENABLE_ACCOUNT: 'border border-success/40 bg-success/15 text-success',
+                            SIGN_OUT_ALL: 'border border-border bg-background text-foreground',
+                            CREATED: 'border border-border bg-background text-foreground',
                           };
-                          const color = actionColors[log.action] || 'bg-slate-100 text-slate-800 border-slate-200';
+                          const color = actionColors[log.action] || 'border border-border bg-background text-foreground';
 
                           return (
-                            <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3 px-4 font-mono font-semibold text-slate-900">
+                            <tr key={log.id} className="hover:bg-[var(--kd-primary-soft)] transition-colors">
+                              <td className="py-3 px-4 font-mono font-semibold text-foreground">
                                 {new Date(log.created_at).toLocaleString()}
                               </td>
                               <td className="py-3 px-4">
@@ -1276,10 +1256,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                                   {log.action.replace('_', ' ')}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-slate-700 font-medium">
-                                {log.details || '—'}
+                              <td className="py-3 px-4 text-foreground font-medium">
+                                {log.note || '—'}
                               </td>
-                              <td className="py-3 px-4 text-slate-600 font-semibold font-mono">
+                              <td className="py-3 px-4 text-muted-foreground font-semibold font-mono">
                                 {log.performed_by}
                               </td>
                             </tr>
@@ -1289,31 +1269,35 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  page={auditPagination.page}
+                  totalPages={auditPagination.totalPages}
+                  totalItems={auditPagination.totalItems}
+                  from={auditPagination.from}
+                  to={auditPagination.to}
+                  pageSize={auditPagination.pageSize}
+                  onPageChange={auditPagination.setPage}
+                  onPageSizeChange={auditPagination.setPageSize}
+                />
               </div>
 
             </div>
           ) : (
             /* Consolidated Tenant Feature Access Section */
-            <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-fade-in-up">
+            <div className="animate-fade-in-up space-y-6">
               
               {/* Header Toolbar with Preview Button */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                    <SlidersHorizontal className="w-5 h-5 text-emerald-700" />
-                    <span>Granular Server-Enforced Feature Controls for {tenant.business_name}</span>
-                  </h3>
-                  <p className="text-xs text-slate-500 font-normal mt-0.5">
-                    Super Admin controls sidebar item visibility and route access specifically for this tenant.
-                  </p>
+                  <h3 className="text-base font-semibold text-foreground">Feature access</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Controls which modules this shop can open.</p>
                 </div>
-
                 <button
+                  type="button"
                   onClick={() => setIsPreviewOpen(true)}
-                  className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+                  className="rounded-[var(--kd-radius)] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
                 >
-                  <Eye className="w-4 h-4 text-sarson-300" />
-                  <span>PREVIEW AS THIS TENANT</span>
+                  Preview as shop
                 </button>
               </div>
 
@@ -1325,91 +1309,46 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     <div key={category.id} className="space-y-3">
                       
                       {/* Category Header */}
-                      <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                        <div className="p-1.5 bg-emerald-100 text-emerald-900 rounded-lg">
-                          <CategoryIcon className="w-4 h-4" />
+                      <div className="flex items-center gap-2 border-b border-border pb-2">
+                        <div className="rounded-lg bg-[var(--kd-primary-soft)] p-1.5 text-primary">
+                          <CategoryIcon className="size-4" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-slate-900">{category.title}</h4>
-                          <p className="text-2xs text-slate-500 font-normal">{category.description}</p>
+                          <h4 className="text-sm font-semibold text-foreground">{category.title}</h4>
+                          <p className="text-xs text-muted-foreground">{category.description}</p>
                         </div>
                       </div>
 
                       {/* Toggles Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                         {category.toggles.map((t) => {
                           const enabled = features[t.key];
                           return (
-                            <div
+                            <button
                               key={t.key}
-                              className={`p-4 rounded-xl border transition-all space-y-3 flex flex-col justify-between ${
+                              type="button"
+                              onClick={() => handleToggleFeature(t.key)}
+                              className={`flex w-full items-center justify-between gap-3 rounded-[var(--kd-radius)] border p-4 text-left transition-colors ${
                                 enabled
-                                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 shadow-2xs'
-                                  : 'bg-slate-50/90 border-slate-300 text-slate-700'
+                                  ? 'border-primary/35 bg-[color-mix(in_srgb,var(--kd-primary)_14%,var(--kd-surface))]'
+                                  : 'border-border bg-[color-mix(in_srgb,var(--kd-background)_35%,var(--kd-surface))] hover:border-primary/25'
                               }`}
                             >
-                              <div className="space-y-2">
-                                {/* Title & Switch */}
-                                <div
-                                  onClick={() => handleToggleFeature(t.key)}
-                                  className="flex items-start justify-between gap-2 cursor-pointer select-none"
-                                >
-                                  <div>
-                                    <span className="text-xs font-semibold text-slate-900 block">{t.label}</span>
-                                    <span className="text-[10px] font-mono text-emerald-800 font-medium">
-                                      Sidebar: &quot;{t.sidebarItem}&quot;
-                                    </span>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleFeature(t.key);
-                                    }}
-                                    className="shrink-0 cursor-pointer"
-                                  >
-                                    {enabled ? (
-                                      <ToggleRight className="w-7 h-7 text-emerald-700" />
-                                    ) : (
-                                      <ToggleLeft className="w-7 h-7 text-slate-400" />
-                                    )}
-                                  </button>
-                                </div>
-
-                                {/* Explicit Description */}
-                                <p className="text-2xs text-slate-600 leading-relaxed font-normal">
-                                  {t.desc}
-                                </p>
-
-                                {/* Inline Consequence Note when OFF */}
-                                {!enabled && (
-                                  <div className="bg-amber-50 border border-amber-200/90 rounded-lg p-2 text-[10px] text-amber-900 space-y-0.5 animate-fade-in-up">
-                                    <div className="font-semibold flex items-center gap-1">
-                                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                                      <span>Effect when OFF:</span>
-                                    </div>
-                                    <p className="text-[10px] leading-tight font-normal text-amber-800">
-                                      {t.offNote}
-                                    </p>
-                                  </div>
+                              <div className="min-w-0">
+                                <span className="block truncate text-sm font-medium text-foreground">{t.label}</span>
+                                <span className="mt-0.5 block truncate text-xs text-muted-foreground">{t.sidebarItem}</span>
+                              </div>
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className={`text-xs font-medium ${enabled ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  {enabled ? 'On' : 'Off'}
+                                </span>
+                                {enabled ? (
+                                  <ToggleRight className="size-7 text-primary" />
+                                ) : (
+                                  <ToggleLeft className="size-7 text-muted-foreground" />
                                 )}
-                              </div>
-
-                              {/* Footer Status Badge & Route Tag */}
-                              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] font-semibold">
-                                <span className="text-2xs text-slate-500 font-mono font-medium">
-                                  {t.routes.join(', ')}
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${
-                                    enabled ? 'bg-emerald-700 text-white shadow-2xs' : 'bg-slate-200 text-slate-700'
-                                  }`}
-                                >
-                                  {enabled ? 'ENABLED' : 'DISABLED'}
-                                </span>
-                              </div>
-                            </div>
+                              </span>
+                            </button>
                           );
                         })}
                       </div>
@@ -1426,52 +1365,42 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal: "Preview as this tenant" */}
         {isPreviewOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
               
               {/* Modal Header */}
-              <div className="bg-slate-900 text-white p-4 px-6 flex items-center justify-between border-b border-slate-800 shrink-0">
-                <div className="flex items-center space-x-2.5">
-                  <Eye className="w-5 h-5 text-sarson-400" />
-                  <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wider">Live Sidebar &amp; Route Access Preview</h3>
-                    <p className="text-2xs text-slate-400 font-normal">
-                      Simulated tenant layout for <strong className="font-semibold">{tenant.business_name}</strong> ({tenant.city})
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Sidebar preview</h3>
+                  <p className="text-xs text-muted-foreground">{tenant.business_name}</p>
                 </div>
-
-                <button
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
+                <button type="button" onClick={() => setIsPreviewOpen(false)} className="text-muted-foreground" aria-label="Close">
+                  <X className="size-4" />
                 </button>
               </div>
 
-              {/* Modal Body */}
-              <div className="p-6 overflow-y-auto space-y-5 bg-slate-50/60 text-xs">
+              <div className="space-y-5 overflow-y-auto bg-background p-5 text-sm">
                 
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-900 flex items-center justify-between text-2xs">
+                <div className="rounded-xl border border-border bg-[var(--kd-primary-soft)] p-3 text-foreground flex items-center justify-between text-2xs">
                   <div className="font-normal">
                     💡 This preview reflects real-time feature flags specifically configured for <strong className="font-semibold">{tenant.business_name}</strong>. Green items are visible to shop staff; greyed out items with lock icons are hidden/blocked.
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-4">
+                <div className="space-y-4 rounded-xl border border-border bg-background p-4">
                   
                   {/* Overview Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <LayoutDashboard className="w-3.5 h-3.5" />
                       <span>Overview</span>
                     </div>
-                    <div className="p-2 bg-emerald-50 text-emerald-950 rounded-lg font-semibold flex items-center justify-between">
+                    <div className="rounded-lg bg-[var(--kd-primary-soft)] p-2 text-foreground font-semibold flex items-center justify-between">
                       <span className="flex items-center gap-2">
-                        <LayoutDashboard className="w-4 h-4 text-emerald-700" />
+                        <LayoutDashboard className="w-4 h-4 text-primary" />
                         Dashboard (/dashboard)
                       </span>
-                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-emerald-700 text-white">
+                      <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase text-primary-foreground">
                         ALWAYS ACTIVE
                       </span>
                     </div>
@@ -1479,7 +1408,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Sales & Udhaar Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <ShoppingCart className="w-3.5 h-3.5" />
                       <span>Sales &amp; Udhaar</span>
                     </div>
@@ -1494,15 +1423,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                           key={idx}
                           className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
-                              ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
-                              : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                              ? 'border-border bg-[var(--kd-primary-soft)] text-foreground'
+                              : 'border-border bg-background text-muted-foreground line-through'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> : <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                             {item.label}
                           </span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-primary text-primary-foreground' : 'bg-border text-muted-foreground'}`}>
                             {item.enabled ? 'VISIBLE' : 'HIDDEN / BLOCKED'}
                           </span>
                         </div>
@@ -1512,7 +1441,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Inventory & Stock Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <Package className="w-3.5 h-3.5" />
                       <span>Inventory &amp; Stock</span>
                     </div>
@@ -1526,15 +1455,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                           key={idx}
                           className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
-                              ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
-                              : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                              ? 'border-border bg-[var(--kd-primary-soft)] text-foreground'
+                              : 'border-border bg-background text-muted-foreground line-through'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> : <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                             {item.label}
                           </span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-primary text-primary-foreground' : 'bg-border text-muted-foreground'}`}>
                             {item.enabled ? 'VISIBLE' : 'HIDDEN / BLOCKED'}
                           </span>
                         </div>
@@ -1544,7 +1473,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Operations Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <ArrowLeftRight className="w-3.5 h-3.5" />
                       <span>Operations</span>
                     </div>
@@ -1557,15 +1486,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                           key={idx}
                           className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
-                              ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
-                              : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                              ? 'border-border bg-[var(--kd-primary-soft)] text-foreground'
+                              : 'border-border bg-background text-muted-foreground line-through'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> : <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                             {item.label}
                           </span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-primary text-primary-foreground' : 'bg-border text-muted-foreground'}`}>
                             {item.enabled ? 'VISIBLE' : 'HIDDEN / BLOCKED'}
                           </span>
                         </div>
@@ -1575,7 +1504,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* Reports & Audit Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <FileBarChart2 className="w-3.5 h-3.5" />
                       <span>Reports &amp; Audit</span>
                     </div>
@@ -1590,15 +1519,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                           key={idx}
                           className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
-                              ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
-                              : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                              ? 'border-border bg-[var(--kd-primary-soft)] text-foreground'
+                              : 'border-border bg-background text-muted-foreground line-through'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> : <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                             {item.label}
                           </span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-primary text-primary-foreground' : 'bg-border text-muted-foreground'}`}>
                             {item.enabled ? 'VISIBLE' : 'HIDDEN / BLOCKED'}
                           </span>
                         </div>
@@ -1608,7 +1537,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {/* System Settings Group */}
                   <div className="space-y-1.5">
-                    <div className="text-2xs font-medium uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <div className="text-2xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <Settings2 className="w-3.5 h-3.5" />
                       <span>System Settings</span>
                     </div>
@@ -1623,15 +1552,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                           key={idx}
                           className={`p-2 rounded-lg font-semibold flex items-center justify-between border ${
                             item.enabled
-                              ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200'
-                              : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                              ? 'border-border bg-[var(--kd-primary-soft)] text-foreground'
+                              : 'border-border bg-background text-muted-foreground line-through'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                            {item.enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> : <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                             {item.label}
                           </span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${item.enabled ? 'bg-primary text-primary-foreground' : 'bg-border text-muted-foreground'}`}>
                             {item.enabled ? 'VISIBLE' : 'HIDDEN / BLOCKED'}
                           </span>
                         </div>
@@ -1644,10 +1573,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 bg-slate-100 border-t border-slate-200 text-right shrink-0">
+              <div className="shrink-0 border-t border-border bg-background p-4 text-right">
                 <button
                   onClick={() => setIsPreviewOpen(false)}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2 rounded-xl text-xs cursor-pointer transition-colors"
+                  className="cursor-pointer rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground"
                 >
                   Close Preview
                 </button>
@@ -1659,26 +1588,26 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal: Record Payment Received */}
         {isPaymentModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-6 py-5">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md">
-                    <Plus className="w-6 h-6 stroke-[3]" />
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">
+                    <Plus className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">Log Payment Received</h3>
-                    <p className="text-2xs text-slate-400 font-normal">Record installation or recurring charge for {tenant.business_name}</p>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">Log Payment Received</h3>
+                    <p className="text-xs text-muted-foreground">Record installation or recurring charge for {tenant.business_name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 cursor-pointer">
+                <button onClick={() => setIsPaymentModalOpen(false)} className="cursor-pointer rounded-xl p-1.5 text-muted-foreground hover:bg-background hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleRecordPaymentSubmit} className="p-6 space-y-4 text-xs">
                 <div className="space-y-1">
-                  <label className="block font-medium text-slate-800">Payment Type *</label>
+                  <label className="block text-sm font-medium text-foreground">Payment Type *</label>
                   <select
                     value={paymentForm.payment_type}
                     onChange={(e) => {
@@ -1689,50 +1618,50 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         amount: type === 'recurring' ? billingTerms.recurring_amount : billingTerms.installation_charges
                       });
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
                   >
                     <option value="recurring">↻ Recurring Charge (Rs. {billingTerms.recurring_amount.toLocaleString()}{billingTerms.recurring_interval_months ? ` / ${getIntervalLabel(billingTerms.recurring_interval_months)}` : ''})</option>
                     <option value="installation">🔧 Installation / One-Time (Rs. {billingTerms.installation_charges.toLocaleString()})</option>
                   </select>
                   {paymentForm.payment_type === 'recurring' && billingTerms.recurring_interval_months && (
-                    <p className="text-[11px] text-emerald-700 font-medium mt-0.5">✓ Logging this will advance the next due date by {billingTerms.recurring_interval_months} month(s).</p>
+                    <p className="text-[11px] text-primary font-medium mt-0.5">✓ Logging this will advance the next due date by {billingTerms.recurring_interval_months} month(s).</p>
                   )}
                   {paymentForm.payment_type === 'installation' && (
-                    <p className="text-[11px] text-blue-700 font-medium mt-0.5">ℹ Installation payments are one-time and do not affect any due date.</p>
+                    <p className="text-[11px] text-accent font-medium mt-0.5">ℹ Installation payments are one-time and do not affect any due date.</p>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Amount Received (Rs.) *</label>
+                    <label className="block text-sm font-medium text-foreground">Amount Received (Rs.) *</label>
                     <input
                       type="number"
                       required
                       value={paymentForm.amount}
                       onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Payment Date *</label>
+                    <label className="block text-sm font-medium text-foreground">Payment Date *</label>
                     <input
                       type="date"
                       required
                       value={paymentForm.payment_date}
                       onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Payment Method *</label>
+                    <label className="block text-sm font-medium text-foreground">Payment Method *</label>
                     <select
                       value={paymentForm.payment_method}
                       onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value as any })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
                     >
                       <option value="bank_transfer">🏦 Bank Transfer</option>
                       <option value="cash">💵 Cash</option>
@@ -1742,38 +1671,38 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Reference # / Cheque #</label>
+                    <label className="block text-sm font-medium text-foreground">Reference # / Cheque #</label>
                     <input
                       type="text"
                       placeholder="e.g. HBL-991204"
                       value={paymentForm.reference_number}
                       onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block font-medium text-slate-800">Notes / Remarks</label>
+                  <label className="block text-sm font-medium text-foreground">Notes / Remarks</label>
                   <input
                     type="text"
                     placeholder="Optional payment notes..."
                     value={paymentForm.notes}
                     onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
 
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-2xs text-emerald-900 font-medium flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-[var(--kd-primary-soft)] p-3 text-xs font-medium text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                   <span>Logging a recurring payment automatically advances the next due date and clears active notifications!</span>
                 </div>
 
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
-                  <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer">
+                <div className="pt-3 border-t border-border flex items-center justify-end space-x-3">
+                  <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="cursor-pointer rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                     Cancel
                   </button>
-                  <button type="submit" className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-600/20 cursor-pointer">
+                  <button type="submit" className="cursor-pointer rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">
                     CONFIRM PAYMENT
                   </button>
                 </div>
@@ -1784,19 +1713,19 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal: Edit Commercial Terms */}
         {isEditTermsModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
-              <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900 sticky top-0 z-10">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[var(--kd-surface)] px-6 py-5">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md">
-                    <Edit3 className="w-5 h-5 stroke-[2.5]" />
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">
+                    <Edit3 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">Edit Billing Terms</h3>
-                    <p className="text-2xs text-slate-400 font-normal">Configure installation and recurring charges for {tenant.business_name}</p>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">Edit Billing Terms</h3>
+                    <p className="text-xs text-muted-foreground">Configure installation and recurring charges for {tenant.business_name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsEditTermsModalOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 cursor-pointer">
+                <button onClick={() => setIsEditTermsModalOpen(false)} className="cursor-pointer rounded-xl p-1.5 text-muted-foreground hover:bg-background hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -1804,48 +1733,48 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               <form onSubmit={handleUpdateTermsSubmit} className="p-6 space-y-5 text-xs">
 
                 {/* ─── INSTALLATION CHARGE ─── */}
-                <div className="space-y-3 p-4 bg-blue-50/60 border border-blue-200 rounded-xl">
+                <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                   <div className="flex items-center gap-1.5">
-                    <Wrench className="w-4 h-4 text-blue-700" />
-                    <h4 className="font-semibold text-blue-900 text-xs uppercase tracking-wide">Installation Charge (One-Time)</h4>
+                    <Wrench className="size-4 text-muted-foreground" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground">Installation Charge (One-Time)</h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block font-medium text-slate-800">Installation Charges (Rs.)</label>
+                      <label className="block text-sm font-medium text-foreground">Installation Charges (Rs.)</label>
                       <input
                         type="number"
                         min={0}
                         value={termsForm.installation_charges}
                         onChange={(e) => setTermsForm({ ...termsForm, installation_charges: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block font-medium text-slate-800">Installation Date</label>
+                      <label className="block text-sm font-medium text-foreground">Installation Date</label>
                       <input
                         type="date"
                         value={termsForm.installation_date}
                         onChange={(e) => setTermsForm({ ...termsForm, installation_date: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
-                  <p className="text-[11px] text-blue-700 font-normal">Recorded once — never generates a recurring due date.</p>
+                  <p className="text-[11px] font-normal text-muted-foreground">Recorded once — never generates a recurring due date.</p>
                 </div>
 
                 {/* ─── RECURRING CHARGE ─── */}
-                <div className="space-y-3 p-4 bg-amber-50/60 border border-amber-200 rounded-xl">
+                <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                   <div className="flex items-center gap-1.5">
-                    <RefreshCw className="w-4 h-4 text-amber-700" />
-                    <h4 className="font-semibold text-amber-900 text-xs uppercase tracking-wide">Recurring Charge</h4>
+                    <RefreshCw className="size-4 text-muted-foreground" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground">Recurring Charge</h4>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block font-medium text-slate-800">Charge Frequency</label>
+                    <label className="block text-sm font-medium text-foreground">Charge Frequency</label>
                     <select
                       value={termsForm.interval_mode}
                       onChange={(e) => setTermsForm({ ...termsForm, interval_mode: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
                     >
                       <option value="none">🚫 No recurring charge</option>
                       <option value="1">📅 Every 1 month (monthly)</option>
@@ -1859,7 +1788,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                   {termsForm.interval_mode === 'custom' && (
                     <div className="space-y-1">
-                      <label className="block font-medium text-slate-800">Custom Interval (months)</label>
+                      <label className="block text-sm font-medium text-foreground">Custom Interval (months)</label>
                       <input
                         type="number"
                         min={1}
@@ -1867,7 +1796,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                         required
                         value={termsForm.custom_interval_months}
                         onChange={(e) => setTermsForm({ ...termsForm, custom_interval_months: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                         placeholder="e.g. 2 for every 2 months"
                       />
                     </div>
@@ -1876,26 +1805,26 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   {termsForm.interval_mode !== 'none' && (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="block font-medium text-slate-800">Recurring Amount (Rs.) *</label>
+                        <label className="block text-sm font-medium text-foreground">Recurring Amount (Rs.) *</label>
                         <input
                           type="number"
                           required
                           min={0}
                           value={termsForm.recurring_amount}
                           onChange={(e) => setTermsForm({ ...termsForm, recurring_amount: Number(e.target.value) })}
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                          className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="block font-medium text-slate-800">First Recurring Charge Date *</label>
+                        <label className="block text-sm font-medium text-foreground">First Recurring Charge Date *</label>
                         <input
                           type="date"
                           required={termsForm.interval_mode !== 'none'}
                           value={termsForm.first_recurring_date}
                           onChange={(e) => setTermsForm({ ...termsForm, first_recurring_date: e.target.value })}
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                          className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                         />
-                        <p className="text-[10px] text-slate-500">Next due date is auto-calculated from here.</p>
+                        <p className="text-[10px] text-muted-foreground">Next due date is auto-calculated from here.</p>
                       </div>
                     </div>
                   )}
@@ -1903,21 +1832,21 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
                 {/* ─── NOTES ─── */}
                 <div className="space-y-1">
-                  <label className="block font-medium text-slate-800">Terms Notes</label>
+                  <label className="block text-sm font-medium text-foreground">Terms Notes</label>
                   <input
                     type="text"
                     value={termsForm.notes}
                     onChange={(e) => setTermsForm({ ...termsForm, notes: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground focus:outline-none focus:border-primary"
                     placeholder="Optional notes about this tenant's billing arrangement..."
                   />
                 </div>
 
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
-                  <button type="button" onClick={() => setIsEditTermsModalOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer">
+                <div className="pt-3 border-t border-border flex items-center justify-end space-x-3">
+                  <button type="button" onClick={() => setIsEditTermsModalOpen(false)} className="cursor-pointer rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                     Cancel
                   </button>
-                  <button type="submit" className="px-5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-semibold rounded-xl text-xs shadow-xs cursor-pointer">
+                  <button type="submit" className="cursor-pointer rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">
                     SAVE BILLING TERMS
                   </button>
                 </div>
@@ -1928,19 +1857,19 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal 1: Reset Password */}
         {isResetPasswordOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-6 py-5">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md">
-                    <KeyRound className="w-6 h-6 stroke-[2.5]" />
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">
+                    <KeyRound className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">Reset Password</h3>
-                    <p className="text-2xs text-slate-400 font-normal">Set new owner password for {tenant.business_name}</p>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">Reset Password</h3>
+                    <p className="text-xs text-muted-foreground">Set new owner password for {tenant.business_name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsResetPasswordOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 cursor-pointer">
+                <button onClick={() => setIsResetPasswordOpen(false)} className="cursor-pointer rounded-xl p-1.5 text-muted-foreground hover:bg-background hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -1948,13 +1877,13 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
               <form onSubmit={handleResetPasswordSubmit} className="p-6 space-y-4 text-xs">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="block font-medium text-slate-800">New Password *</label>
+                    <label className="block text-sm font-medium text-foreground">New Password *</label>
                     <button
                       type="button"
                       onClick={handleGeneratePassword}
-                      className="text-2xs font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
+                      className="flex cursor-pointer items-center gap-1 text-2xs font-semibold text-primary hover:opacity-80"
                     >
-                      <RefreshCw className="w-3 h-3" />
+                      <RefreshCw className="size-3" />
                       Generate Strong Password
                     </button>
                   </div>
@@ -1965,13 +1894,13 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       minLength={8}
                       value={resetPasswordForm.password}
                       onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, password: e.target.value })}
-                      className="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-amber-400"
+                      className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                       placeholder="Min 8 characters"
                     />
                     <button
                       type="button"
                       onClick={() => setResetPasswordForm({ ...resetPasswordForm, showPassword: !resetPasswordForm.showPassword })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground cursor-pointer"
                     >
                       {resetPasswordForm.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -1980,10 +1909,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   {resetPasswordForm.password && (
                     <div className="space-y-1 pt-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-slate-500 font-medium">Strength:</span>
-                        <span className="font-bold text-slate-800">{getPasswordStrength(resetPasswordForm.password).label}</span>
+                        <span className="text-muted-foreground font-medium">Strength:</span>
+                        <span className="font-bold text-foreground">{getPasswordStrength(resetPasswordForm.password).label}</span>
                       </div>
-                      <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-border">
                         <div
                           className={`h-full transition-all duration-300 ${getPasswordStrength(resetPasswordForm.password).color}`}
                           style={{ width: `${(getPasswordStrength(resetPasswordForm.password).score / 5) * 100}%` }}
@@ -1999,20 +1928,20 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                       type="checkbox"
                       checked={resetPasswordForm.forceChange}
                       onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, forceChange: e.target.checked })}
-                      className="mt-0.5 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
+                      className="mt-0.5 rounded border-border text-primary focus:ring-primary"
                     />
                     <div>
-                      <span className="font-semibold text-slate-800 block">Force password change on next login</span>
-                      <span className="text-[11px] text-slate-500 block">User will be required to choose a new password upon logging in.</span>
+                      <span className="font-semibold text-foreground block">Force password change on next login</span>
+                      <span className="text-[11px] text-muted-foreground block">User will be required to choose a new password upon logging in.</span>
                     </div>
                   </label>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
-                  <button type="button" onClick={() => setIsResetPasswordOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer">
+                <div className="pt-4 border-t border-border flex items-center justify-end space-x-3">
+                  <button type="button" onClick={() => setIsResetPasswordOpen(false)} className="cursor-pointer rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                     Cancel
                   </button>
-                  <button type="submit" className="px-5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-semibold rounded-xl text-xs shadow-xs cursor-pointer">
+                  <button type="submit" className="cursor-pointer rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">
                     RESET PASSWORD NOW
                   </button>
                 </div>
@@ -2023,34 +1952,34 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal 2: Change Username */}
         {isChangeUsernameOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-6 py-5">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
-                    <Edit3 className="w-6 h-6 stroke-[2.5]" />
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">
+                    <Edit3 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">Change Username</h3>
-                    <p className="text-2xs text-slate-400 font-normal">Update platform handle for {tenant.business_name}</p>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">Change Username</h3>
+                    <p className="text-xs text-muted-foreground">Update platform handle for {tenant.business_name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsChangeUsernameOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 cursor-pointer">
+                <button onClick={() => setIsChangeUsernameOpen(false)} className="cursor-pointer rounded-xl p-1.5 text-muted-foreground hover:bg-background hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleChangeUsernameSubmit} className="p-6 space-y-4 text-xs">
                 <div className="space-y-1">
-                  <label className="block font-medium text-slate-800">New Username *</label>
+                  <label className="block text-sm font-medium text-foreground">New Username *</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">@</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono font-bold">@</span>
                     <input
                       type="text"
                       required
                       value={changeUsernameForm.username}
                       onChange={(e) => handleUsernameChange(e.target.value)}
-                      className="w-full pl-8 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="w-full pl-8 pr-10 py-2 bg-background border border-border rounded-xl text-xs font-mono font-semibold text-foreground focus:outline-none focus:border-primary"
                       placeholder="e.g. greenfield_pesticides"
                     />
                   </div>
@@ -2058,22 +1987,22 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                     <p className="text-[10px] text-blue-600 font-medium">Checking username availability...</p>
                   )}
                   {changeUsernameForm.status === 'available' && (
-                    <p className="text-[10px] text-emerald-600 font-semibold">✓ Username is available!</p>
+                    <p className="text-[10px] text-primary font-semibold">✓ Username is available!</p>
                   )}
                   {changeUsernameForm.status === 'taken' && (
                     <p className="text-[10px] text-red-600 font-semibold">✕ Username is already taken across platform.</p>
                   )}
-                  <p className="text-[10px] text-slate-500">4-30 chars: lowercase letters, numbers, dot (.), underscore (_).</p>
+                  <p className="text-[10px] text-muted-foreground">4-30 chars: lowercase letters, numbers, dot (.), underscore (_).</p>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
-                  <button type="button" onClick={() => setIsChangeUsernameOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer">
+                <div className="pt-4 border-t border-border flex items-center justify-end space-x-3">
+                  <button type="button" onClick={() => setIsChangeUsernameOpen(false)} className="cursor-pointer rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={changeUsernameForm.status === 'taken' || changeUsernameForm.status === 'checking'}
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs shadow-xs cursor-pointer"
+                    className="cursor-pointer rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
                   >
                     UPDATE USERNAME
                   </button>
@@ -2085,67 +2014,65 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal 3: Disable / Enable Account */}
         {isDisableAccountOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className={`p-5 px-6 flex items-center justify-between text-white border-b ${
-                ownerProfile?.account_disabled_at ? 'bg-emerald-950 border-emerald-900' : 'bg-red-950 border-red-900'
-              }`}>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-6 py-5">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shadow-md ${
-                    ownerProfile?.account_disabled_at ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+                  <div className={`flex size-10 items-center justify-center rounded-2xl font-bold ${
+                    ownerProfile?.account_disabled_at ? 'bg-primary text-primary-foreground' : 'bg-danger text-white'
                   }`}>
                     {ownerProfile?.account_disabled_at ? <UserCheck className="w-6 h-6 stroke-[2.5]" /> : <UserX className="w-6 h-6 stroke-[2.5]" />}
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">
                       {ownerProfile?.account_disabled_at ? 'Enable Tenant Account' : 'Disable Tenant Account'}
                     </h3>
-                    <p className="text-2xs text-slate-400 font-normal">Account login control for {tenant.business_name}</p>
+                    <p className="text-xs text-muted-foreground">Account login control for {tenant.business_name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsDisableAccountOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 cursor-pointer">
+                <button onClick={() => setIsDisableAccountOpen(false)} className="cursor-pointer rounded-xl p-1.5 text-muted-foreground hover:bg-background hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleToggleAccountDisabledSubmit} className="p-6 space-y-4 text-xs">
                 {ownerProfile?.account_disabled_at ? (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900">
+                  <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-success">
                     <p className="font-semibold">Re-enable Login Access?</p>
-                    <p className="text-[11px] text-emerald-700 mt-1">This shop owner will be able to log in and use their POS system again immediately.</p>
+                    <p className="text-[11px] text-primary mt-1">This shop owner will be able to log in and use their POS system again immediately.</p>
                   </div>
                 ) : (
                   <>
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 space-y-1">
+                    <div className="space-y-1 rounded-xl border border-danger/30 bg-danger/10 p-3 text-danger">
                       <p className="font-semibold flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                         <span>Warning: Account Disablement</span>
                       </p>
-                      <p className="text-[11px] text-red-700">This will block the owner and all shop staff from logging in until re-enabled.</p>
+                      <p className="text-[11px] text-danger">This will block the owner and all shop staff from logging in until re-enabled.</p>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block font-medium text-slate-800">Reason for Disabling *</label>
+                      <label className="block text-sm font-medium text-foreground">Reason for Disabling *</label>
                       <input
                         type="text"
                         required
                         value={disableAccountReason}
                         onChange={(e) => setDisableAccountReason(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-red-600"
+                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground focus:outline-none focus:border-danger"
                         placeholder="e.g. Non-payment of invoice #1024, License check pending..."
                       />
                     </div>
                   </>
                 )}
 
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
-                  <button type="button" onClick={() => setIsDisableAccountOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer">
+                <div className="pt-4 border-t border-border flex items-center justify-end space-x-3">
+                  <button type="button" onClick={() => setIsDisableAccountOpen(false)} className="cursor-pointer rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                     Cancel
                   </button>
                   <button
                     type="submit"
                     className={`px-5 py-2 font-semibold text-white rounded-xl text-xs shadow-xs cursor-pointer ${
-                      ownerProfile?.account_disabled_at ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                      ownerProfile?.account_disabled_at ? 'bg-primary hover:opacity-90' : 'bg-danger hover:opacity-90'
                     }`}
                   >
                     {ownerProfile?.account_disabled_at ? 'RE-ENABLE ACCOUNT' : 'DISABLE ACCOUNT NOW'}
@@ -2158,25 +2085,25 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
         {/* Modal 4: Sign Out All Sessions */}
         {isSignOutAllOpen && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="bg-slate-950 text-white p-5 px-6 flex items-center justify-between border-b border-slate-900">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-[var(--kd-surface)] text-foreground shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-6 py-5">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-md">
-                    <LogOut className="w-6 h-6 stroke-[2.5]" />
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">
+                    <LogOut className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">Sign Out All Sessions</h3>
-                    <p className="text-2xs text-slate-400 font-normal">Invalidate active tokens for {tenant.business_name}</p>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">Sign Out All Sessions</h3>
+                    <p className="text-xs text-muted-foreground">Invalidate active tokens for {tenant.business_name}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsSignOutAllOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 cursor-pointer">
+                <button onClick={() => setIsSignOutAllOpen(false)} className="cursor-pointer rounded-xl p-1.5 text-muted-foreground hover:bg-background hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleSignOutAllSubmit} className="p-6 space-y-4 text-xs">
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 space-y-1">
+                <div className="space-y-1 rounded-xl border border-border bg-background p-3 text-foreground">
                   <p className="font-semibold flex items-center gap-1.5">
                     <ShieldAlert className="w-4 h-4 text-purple-700 shrink-0" />
                     <span>Global Session Invalidation</span>
@@ -2186,11 +2113,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   </p>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-3">
-                  <button type="button" onClick={() => setIsSignOutAllOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer">
+                <div className="pt-4 border-t border-border flex items-center justify-end space-x-3">
+                  <button type="button" onClick={() => setIsSignOutAllOpen(false)} className="cursor-pointer rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                     Cancel
                   </button>
-                  <button type="submit" className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-xs shadow-xs cursor-pointer">
+                  <button type="submit" className="cursor-pointer rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">
                     INVALIDATE ALL SESSIONS NOW
                   </button>
                 </div>

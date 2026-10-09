@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import AppShell from '@/components/layout/AppShell';
 import { ToastProvider } from '@/components/ui/Toast';
-import { Poppins, DM_Sans } from "next/font/google";
+import { Poppins, DM_Sans, Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 const poppins = Poppins({
@@ -19,6 +19,13 @@ const dmSans = DM_Sans({
   display: 'swap',
 });
 
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'KisanDost POS — Pesticide & Agri-Input Shop Management',
   description: 'Multi-branch point of sale, FEFO batch tracking, udhaar ledgers, and cash reconciliation for pesticide shops in Pakistan.',
@@ -30,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn(poppins.variable, dmSans.variable)}>
-      <body className="min-h-screen bg-white text-slate-900 antialiased">
+    <html lang="en" className={cn(poppins.variable, dmSans.variable, inter.variable)}>
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <ToastProvider>
           <AppShell>
             {children}

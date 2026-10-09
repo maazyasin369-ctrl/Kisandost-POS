@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Building2, Award } from 'lucide-react'
+import { Building2 } from 'lucide-react'
 import { CompanySalesItem } from '@/actions/analytics'
 
 interface SalesByCompanyListProps {
@@ -9,11 +9,11 @@ interface SalesByCompanyListProps {
 }
 
 const BAR_COLORS = [
-  'bg-emerald-600',
-  'bg-amber-500',
-  'bg-slate-900',
-  'bg-slate-700',
-  'bg-slate-500',
+  'bg-primary',
+  'bg-accent',
+  'bg-chart-3',
+  'bg-primary/70',
+  'bg-accent/60',
 ]
 
 export default function SalesByCompanyList({ companies }: SalesByCompanyListProps) {
@@ -21,25 +21,28 @@ export default function SalesByCompanyList({ companies }: SalesByCompanyListProp
   const maxAmount = Math.max(...sortedCompanies.map((c) => c.amount), 1)
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4 flex flex-col justify-between h-full">
+    <div className="flex h-full flex-col justify-between space-y-4 rounded-[var(--kd-radius)] border border-border bg-[var(--kd-surface)] p-5 shadow-[var(--kd-shadow)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+      <div className="flex items-center justify-between border-b border-border pb-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-amber-400 text-slate-950 rounded-xl shadow-xs">
-            <Building2 className="w-4 h-4 text-slate-950" strokeWidth={2} />
+          <div className="rounded-xl bg-[var(--kd-accent-soft)] p-2 text-accent">
+            <Building2 className="size-4" strokeWidth={2} />
           </div>
           <div>
-            <h2 className="font-semibold text-base text-slate-900">Sales by Company</h2>
-            <p className="text-2xs font-normal text-slate-500">Revenue share by manufacturer</p>
+            <h2 className="text-base font-semibold text-foreground">Sales by Company</h2>
+            <p className="text-2xs font-normal text-muted-foreground">Revenue share by manufacturer</p>
           </div>
         </div>
-        <span className="bg-slate-100 text-slate-700 text-2xs font-semibold px-2.5 py-1 rounded-full border border-slate-200/80">
+        <span className="rounded-full border border-border bg-background px-2.5 py-1 text-2xs font-medium text-muted-foreground">
           Top {sortedCompanies.length} Brands
         </span>
       </div>
 
       {/* Breakdown List */}
       <div className="space-y-3.5 flex-1">
+        {sortedCompanies.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">No company sales in this period.</p>
+        )}
         {sortedCompanies.map((company, index) => {
           const barWidthPercent = Math.round((company.amount / maxAmount) * 100)
           const barColor = BAR_COLORS[index % BAR_COLORS.length]
@@ -48,28 +51,25 @@ export default function SalesByCompanyList({ companies }: SalesByCompanyListProp
             <div key={company.id || index} className="space-y-1.5 group">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-2xs font-medium text-slate-400 font-mono w-4">
+                  <span className="text-2xs font-medium text-muted-foreground font-mono w-4">
                     #{index + 1}
                   </span>
-                  <span className="font-semibold text-slate-900 truncate group-hover:text-amber-600 transition-colors">
+                  <span className="truncate font-medium text-foreground">
                     {company.name}
                   </span>
-                  {index === 0 && (
-                    <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" strokeWidth={2} />
-                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-2xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                  <span className="text-2xs font-medium text-muted-foreground bg-background px-2 py-0.5 rounded-md">
                     {company.percentage}%
                   </span>
-                  <span className="font-semibold text-slate-900 tabular-nums">
+                  <span className="font-semibold text-foreground tabular-nums">
                     Rs. {company.amount.toLocaleString()}
                   </span>
                 </div>
               </div>
 
               {/* Progress Bar Container */}
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+              <div className="h-2 bg-background rounded-full overflow-hidden p-0.5 border border-border/60">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                   style={{ width: `${Math.max(6, barWidthPercent)}%` }}
@@ -81,9 +81,9 @@ export default function SalesByCompanyList({ companies }: SalesByCompanyListProp
       </div>
 
       {/* Footer Info */}
-      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-2xs font-normal text-slate-400">
+      <div className="pt-3 border-t border-border flex items-center justify-between text-2xs font-normal text-muted-foreground">
         <span>Includes Direct Counter + FEFO Sales</span>
-        <span className="text-slate-700 font-medium">Real-Time Aggregation</span>
+        <span className="text-foreground font-medium">Real-Time Aggregation</span>
       </div>
     </div>
   )

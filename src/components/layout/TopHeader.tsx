@@ -1,30 +1,44 @@
 'use client';
 
 import React from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Menu, ChevronDown } from 'lucide-react';
-import { dataStore } from '@/lib/data-store';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import UserMenu from './UserMenu';
+import { useShopChrome } from './ShopChrome';
 
 interface TopHeaderProps {
   onToggleMobileSidebar: () => void;
-  selectedBranchId: string;
-  onSelectBranch: (id: string) => void;
 }
 
-export default function TopHeader({ onToggleMobileSidebar, selectedBranchId, onSelectBranch }: TopHeaderProps) {
-  const branches = dataStore.getBranches();
+export default function TopHeader({ onToggleMobileSidebar }: TopHeaderProps) {
+  const chrome = useShopChrome();
+  const multiBranch = chrome?.multiBranch === true;
+  const branches = chrome?.branches ?? [];
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selectedBranchId = multiBranch ? (searchParams.get('branch') ?? 'all') : 'all';
+  const outletName = branches[0]?.name || 'Main outlet';
+
+  const onSelectBranch = (id: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!id || id === 'all') params.delete('branch');
+    else params.set('branch', id);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm no-print">
+    <header className="no-print sticky top-0 z-40 border-b border-border bg-[var(--kd-surface)]">
       <div className="h-16 px-4 sm:px-5 flex items-center justify-between gap-3">
 
         {/* Left: Mobile menu button only (shop name now lives in sidebar) */}
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={onToggleMobileSidebar}
-            className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors focus-visible:outline-emerald-600"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-[var(--kd-primary-soft)] hover:text-foreground lg:hidden"
           >
             <Menu className="w-5 h-5" strokeWidth={1.75} />
           </button>
@@ -32,22 +46,30 @@ export default function TopHeader({ onToggleMobileSidebar, selectedBranchId, onS
 
         {/* Center: Branch Context Selector + Global Search */}
         <div className="flex items-center gap-2 flex-1 max-w-2xl justify-center">
-          <div className="hidden md:flex items-center gap-2 bg-slate-50 hover:bg-slate-100/80 text-slate-700 border border-slate-200 hover:border-slate-300 rounded-full px-3.5 h-10 text-xs font-semibold shrink-0 shadow-xs transition-colors">
-            <span className="text-slate-400 font-medium text-2xs uppercase tracking-wider shrink-0">VIEW</span>
-            <span className="h-3.5 w-px bg-slate-200 shrink-0"></span>
-            <select
-              value={selectedBranchId}
-              onChange={(e) => onSelectBranch(e.target.value)}
-              className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer max-w-[150px] truncate appearance-none pr-1"
-            >
-              <option value="all" className="bg-white text-slate-900 font-semibold">All Branches</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id} className="bg-white text-slate-900 font-semibold">{b.name}</option>
-              ))}
-            </select>
-            <span className="h-3.5 w-px bg-slate-200 shrink-0"></span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 pointer-events-none" strokeWidth={2} />
-          </div>
+          {multiBranch ? (
+            <div className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-background px-3.5 text-xs font-semibold text-foreground md:flex">
+              <span className="shrink-0 text-2xs font-medium uppercase tracking-wider text-muted-foreground">VIEW</span>
+              <span className="h-3.5 w-px shrink-0 bg-border"></span>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => onSelectBranch(e.target.value)}
+                className="max-w-[150px] cursor-pointer appearance-none truncate bg-transparent pr-1 font-semibold text-foreground focus:outline-none"
+              >
+                <option value="all">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <span className="h-3.5 w-px shrink-0 bg-border"></span>
+              <ChevronDown className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
+            </div>
+          ) : (
+            <div className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-background px-3.5 text-xs font-semibold text-foreground md:flex">
+              <span className="shrink-0 text-2xs font-medium uppercase tracking-wider text-muted-foreground">OUTLET</span>
+              <span className="h-3.5 w-px shrink-0 bg-border"></span>
+              <span className="max-w-[180px] truncate">{outletName}</span>
+            </div>
+          )}
 
           <GlobalSearch />
         </div>

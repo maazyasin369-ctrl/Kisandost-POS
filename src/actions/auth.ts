@@ -16,12 +16,12 @@ export async function getCurrentProfile() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const admin = createAdminClient()
-  const { data: profile } = await admin
+  // Use the signed-in session so RLS policies (auth.uid()) apply.
+  const { data: profile } = await supabase
     .from('profiles')
     .select('id, tenant_id, full_name, phone, role, is_active')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   return profile
 }
@@ -31,22 +31,21 @@ export async function getTenantContext() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const admin = createAdminClient()
-  const { data: profile } = await admin
+  const { data: profile } = await supabase
     .from('profiles')
     .select('id, tenant_id, full_name, phone, role, is_active')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile) return null
 
-  const { data: tenant } = await admin
+  const { data: tenant } = await supabase
     .from('tenants')
     .select('id, business_name, owner_name, phone, city, dealer_license_number, subscription_status, settings')
     .eq('id', profile.tenant_id)
     .single()
 
-  const { data: features } = await admin
+  const { data: features } = await supabase
     .from('tenant_features')
     .select('*')
     .eq('tenant_id', profile.tenant_id)
@@ -55,30 +54,82 @@ export async function getTenantContext() {
   return { profile, tenant, features }
 }
 
-export async function login(formData: FormData) {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const supabase = await createClient()
+function mapAuthError(message: string): string {
+  const lower = message.toLowerCase()
+  if (lower.includes('invalid login credentials')) {
+    return 'Invalid email or password. Please check your login details.'
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Please confirm your email before signing in.'
+  }
+  return message
+}
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+function hasRealServiceRoleKey() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  return Boolean(key && !key.includes('your-service-role'))
+}
+
+export async function loginWithCredentials(identifier: string, password: string) {
+  const raw = identifier.trim()
+  if (!raw || !password) {
+    return { error: 'Please enter your email and password.' }
+  }
+
+  // Supabase Auth signs in with email. Username handles are not stored in auth.users.
+  const email = raw.includes('@') ? raw.toLowerCase() : null
+  if (!email) {
+    return {
+      error: 'Please sign in with your email address (e.g. owner@kisandost.pk).',
+    }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) {
-    return { error: error.message }
+    return { error: mapAuthError(error.message) }
+  }
+
+  if (!data.user) {
+    return { error: 'Authentication failed. Please try again.' }
+  }
+
+  // Read with the authenticated session client. Do not use the admin/anon
+  // fallback here — RLS is enabled and only auth.uid() can see the profile.
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, tenant_id, is_active')
+    .eq('id', data.user.id)
+    .maybeSingle()
+
+  if (profileError) {
+    await supabase.auth.signOut()
+    return { error: 'Could not load your shop profile. Please try again.' }
+  }
+
+  if (!profile) {
+    await supabase.auth.signOut()
+    return {
+      error: 'Account exists in Auth but has no shop profile. Contact Super Admin to activate your shop.',
+    }
+  }
+
+  if (!profile.is_active) {
+    await supabase.auth.signOut()
+    return { error: 'Your shop owner login has been disabled by Super Admin.' }
   }
 
   redirect('/dashboard')
 }
 
-export async function demoLogin() {
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({
-    email: 'owner@kisandost.pk',
-    password: 'KisanDost@2026!',
-  })
-  if (error) {
-    return { error: error.message }
-  }
+export async function login(formData: FormData) {
+  const email = (formData.get('email') || formData.get('identifier')) as string
+  const password = formData.get('password') as string
+  return loginWithCredentials(email, password)
+}
 
-  redirect('/dashboard')
+export async function demoLogin() {
+  return loginWithCredentials('owner@kisandost.pk', 'KisanDost@2026!')
 }
 
 export async function signup(formData: FormData) {
@@ -90,7 +141,6 @@ export async function signup(formData: FormData) {
   const city = formData.get('city') as string
 
   const supabase = await createClient()
-  const admin = createAdminClient()
 
   // 1. Create Supabase Auth user
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -104,8 +154,12 @@ export async function signup(formData: FormData) {
 
   const userId = authData.user.id
 
+  // Prefer service-role for bootstrap inserts under RLS.
+  // Without it, signup inserts will fail once RLS blocks anon writes.
+  const writer = hasRealServiceRoleKey() ? createAdminClient() : supabase
+
   // 2. Create the tenant record
-  const { data: tenant, error: tenantError } = await admin
+  const { data: tenant, error: tenantError } = await writer
     .from('tenants')
     .insert({
       business_name: businessName,
@@ -119,11 +173,11 @@ export async function signup(formData: FormData) {
     .single()
 
   if (tenantError || !tenant) {
-    return { error: 'Could not create tenant record' }
+    return { error: tenantError?.message || 'Could not create tenant record' }
   }
 
   // 3. Create the owner profile
-  await admin.from('profiles').insert({
+  const { error: profileInsertError } = await writer.from('profiles').insert({
     id: userId,
     tenant_id: tenant.id,
     full_name: fullName,
@@ -132,8 +186,12 @@ export async function signup(formData: FormData) {
     is_active: true,
   })
 
+  if (profileInsertError) {
+    return { error: profileInsertError.message || 'Could not create shop profile' }
+  }
+
   // 4. Create default tenant features (single-branch to start)
-  await admin.from('tenant_features').insert({
+  await writer.from('tenant_features').insert({
     tenant_id: tenant.id,
     multi_branch: false,
     schemes: true,
@@ -143,7 +201,7 @@ export async function signup(formData: FormData) {
   })
 
   // 5. Create a default branch
-  await admin.from('branches').insert({
+  await writer.from('branches').insert({
     tenant_id: tenant.id,
     name: `${businessName} - Main Branch`,
     address: city,
@@ -152,6 +210,48 @@ export async function signup(formData: FormData) {
   })
 
   redirect('/dashboard')
+}
+
+export async function getShopChrome() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, role, tenant_id')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (!profile) return null
+
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id, business_name, owner_name, dealer_license_number')
+    .eq('id', profile.tenant_id)
+    .maybeSingle()
+
+  const [{ data: features }, { data: branches }] = await Promise.all([
+    supabase
+      .from('tenant_features')
+      .select('multi_branch')
+      .eq('tenant_id', profile.tenant_id)
+      .maybeSingle(),
+    supabase
+      .from('branches')
+      .select('id, name')
+      .eq('tenant_id', profile.tenant_id)
+      .eq('is_active', true)
+      .order('name'),
+  ])
+
+  return {
+    ownerName: profile.full_name,
+    role: profile.role,
+    businessName: tenant?.business_name ?? 'Shop',
+    license: tenant?.dealer_license_number ?? '',
+    multiBranch: features?.multi_branch === true,
+    branches: branches ?? [],
+  }
 }
 
 export async function logout() {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { dataStore } from '@/lib/data-store';
+import { useShopChrome } from './ShopChrome';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -24,7 +24,6 @@ import {
   FileBarChart2,
   ChevronDown,
   X,
-  Leaf,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -165,13 +164,13 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
             className={`
               flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-150
               ${active
-                ? 'bg-slate-950 text-white shadow-sm font-semibold'
-                : 'text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[var(--kd-primary-soft)] font-medium text-primary'
+                : 'font-medium text-muted-foreground hover:bg-[var(--kd-primary-soft)] hover:text-foreground'
               }
             `}
           >
             <GroupIcon
-              className={`shrink-0 w-4 h-4 ${active ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'}`}
+              className={`size-4 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`}
               strokeWidth={2}
             />
             <span className="truncate">{item.label}</span>
@@ -185,17 +184,17 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         {/* Accordion Group Header */}
         <button
           onClick={() => toggleGroup(group.id)}
-          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-2xs font-semibold uppercase tracking-wider transition-all ${
-            isGroupActive ? 'text-slate-900 bg-slate-100 font-semibold' : 'text-slate-500 font-medium hover:text-slate-900 hover:bg-slate-100'
+          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-2xs font-semibold uppercase tracking-wider transition-all ${
+            isGroupActive ? 'bg-[var(--kd-primary-soft)] text-foreground' : 'font-medium text-muted-foreground hover:bg-[var(--kd-primary-soft)] hover:text-foreground'
           }`}
         >
           <div className="flex items-center gap-2">
-            <GroupIcon className={`w-3.5 h-3.5 ${isGroupActive ? 'text-slate-900' : 'text-slate-400'}`} strokeWidth={2} />
+            <GroupIcon className={`size-3.5 ${isGroupActive ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={2} />
             <span>{group.title}</span>
           </div>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-              isOpen ? 'rotate-180 text-slate-900' : ''
+            className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${
+              isOpen ? 'rotate-180 text-foreground' : ''
             }`}
             strokeWidth={2}
           />
@@ -203,7 +202,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
 
         {/* Accordion Sub-items */}
         {isOpen && (
-          <div className="ml-2 pl-2 border-l border-slate-200 space-y-0.5 animate-fade-in-up">
+          <div className="ml-2 space-y-0.5 border-l border-border pl-2">
             {group.items.map((item) => {
               const active = isItemActive(item.href);
               const Icon = item.icon;
@@ -215,24 +214,14 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                   className={`
                     flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs
                     transition-all duration-150
-                    ${item.isPrimary
-                      ? active
-                        ? 'bg-yellow-400 text-slate-950 hover:bg-yellow-500 font-semibold shadow-md my-1 ring-2 ring-yellow-500/40'
-                        : 'bg-yellow-400 text-slate-950 hover:bg-yellow-500 font-semibold shadow-md my-1'
-                      : active
-                        ? 'bg-slate-950 text-white font-semibold shadow-sm'
-                        : 'text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900'
+                    ${active
+                      ? 'bg-[var(--kd-primary-soft)] font-medium text-primary'
+                      : 'font-medium text-muted-foreground hover:bg-[var(--kd-primary-soft)] hover:text-foreground'
                     }
                   `}
                 >
                   <Icon
-                    className={`shrink-0 w-3.5 h-3.5 ${
-                      item.isPrimary
-                        ? 'text-slate-950'
-                        : active
-                          ? 'text-white'
-                          : 'text-slate-400 group-hover:text-slate-900'
-                    }`}
+                    className={`size-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`}
                     strokeWidth={2}
                   />
                   <span className="truncate">{item.label}</span>
@@ -245,8 +234,19 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
     );
   };
 
-  const tenant = dataStore.getTenant();
-  const shopName = tenant?.business_name || 'KisanDost';
+  const chrome = useShopChrome();
+  const shopName = chrome?.businessName || 'Shop';
+  const multiBranch = chrome?.multiBranch === true;
+  const groups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.href !== '/transfers' || multiBranch),
+    }))
+    .filter((group) => group.items.length > 0);
+  const settings = {
+    ...settingsGroup,
+    items: settingsGroup.items.filter((item) => item.href !== '/branches' || multiBranch),
+  };
 
   const renderCollapsedItem = (item: NavItem) => {
     const active = isItemActive(item.href);
@@ -259,24 +259,14 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         title={item.label}
         className={`
           relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-150 shrink-0
-          ${item.isPrimary
-            ? active
-              ? 'bg-yellow-400 text-slate-950 font-semibold shadow-md ring-2 ring-yellow-500/40 scale-105'
-              : 'bg-yellow-400 text-slate-950 hover:bg-yellow-500 font-semibold shadow-md hover:scale-105'
-            : active
-              ? 'bg-slate-950 text-white font-semibold shadow-sm scale-105'
-              : 'text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900 hover:scale-105'
+          ${active
+            ? 'bg-[var(--kd-primary-soft)] text-primary'
+            : 'text-muted-foreground hover:bg-[var(--kd-primary-soft)] hover:text-foreground'
           }
         `}
       >
         <Icon
-          className={`shrink-0 w-4 h-4 ${
-            item.isPrimary
-              ? 'text-slate-950'
-              : active
-                ? 'text-white'
-                : 'text-slate-500 group-hover:text-slate-900'
-          }`}
+          className={`size-4 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`}
           strokeWidth={2}
         />
       </Link>
@@ -286,52 +276,54 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
   const renderNav = (forceExpanded = false) => {
     if (isCollapsed && !forceExpanded) {
       return (
-        <nav className="flex flex-col h-full bg-white select-none overflow-hidden border-r border-slate-200 shadow-sm items-center">
+        <nav className="flex h-full flex-col items-center overflow-hidden border-r border-border bg-[var(--kd-surface)] select-none">
           {/* Shop Brand Header - Mini Icon */}
-          <div className="h-16 flex items-center justify-center shrink-0 w-full border-b border-slate-200/80 px-2">
+          <div className="flex h-16 w-full shrink-0 items-center justify-center border-b border-border px-2">
             <Link
               href="/dashboard"
               title={shopName}
-              className="bg-amber-400 text-slate-950 p-2 rounded-xl flex items-center justify-center shadow-xs hover:scale-105 transition-transform"
+              className="flex size-8 overflow-hidden rounded-lg"
             >
-              <Leaf className="w-4 h-4" strokeWidth={2.5} />
+              <span className="w-1/2 bg-primary" />
+              <span className="w-1/2 bg-accent" />
             </Link>
           </div>
 
           {/* Scrollable Nav Icons */}
           <div className="flex-1 overflow-y-auto py-3 px-2 flex flex-col items-center gap-1.5 scrollbar-thin w-full">
-            {navGroups.map((group, groupIdx) => (
+            {groups.map((group, groupIdx) => (
               <React.Fragment key={group.id}>
-                {groupIdx > 0 && <div className="w-8 h-px bg-slate-200 my-1 shrink-0" />}
+                {groupIdx > 0 && <div className="my-1 h-px w-8 shrink-0 bg-border" />}
                 {group.items.map((item) => renderCollapsedItem(item))}
               </React.Fragment>
             ))}
           </div>
 
           {/* Settings Footer - Mini Icons */}
-          <div className="shrink-0 border-t border-slate-200 p-2 bg-slate-50/80 flex flex-col items-center gap-1.5 w-full">
-            {settingsGroup.items.map((item) => renderCollapsedItem(item))}
+          <div className="flex w-full shrink-0 flex-col items-center gap-1.5 border-t border-border bg-background p-2">
+            {settings.items.map((item) => renderCollapsedItem(item))}
           </div>
         </nav>
       );
     }
 
     return (
-      <nav className="flex flex-col h-full bg-white select-none overflow-hidden border-r border-slate-200 shadow-sm">
+      <nav className="flex h-full flex-col overflow-hidden border-r border-border bg-[var(--kd-surface)] select-none">
         {/* Shop Brand Header */}
-        <div className="h-16 flex items-center shrink-0 border-b border-slate-200/80 pl-4 pr-8">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="bg-amber-400 text-slate-950 p-1.5 rounded-xl flex items-center justify-center shadow-xs shrink-0">
-              <Leaf className="w-4 h-4" strokeWidth={2.5} />
-            </div>
-            <span className="text-sm font-semibold text-slate-900 tracking-tight truncate">
+        <div className="flex h-16 shrink-0 items-center border-b border-border pl-4 pr-8">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-7 shrink-0 overflow-hidden rounded-lg">
+              <span className="w-1/2 bg-primary" />
+              <span className="w-1/2 bg-accent" />
+            </span>
+            <span className="truncate text-sm font-semibold tracking-tight text-foreground">
               {shopName}
             </span>
           </div>
           {/* Mobile close button */}
           <button
             onClick={onCloseMobile}
-            className="lg:hidden flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors ml-auto border border-slate-200 shrink-0"
+            className="lg:hidden flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--kd-primary-soft)] transition-colors ml-auto border border-border shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -339,12 +331,12 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
 
         {/* Scrollable Nav Groups */}
         <div className="flex-1 overflow-y-auto py-3 px-3 space-y-4 scrollbar-thin">
-          {navGroups.map((group) => renderNavGroup(group))}
+          {groups.map((group) => renderNavGroup(group))}
         </div>
 
         {/* Settings Footer */}
-        <div className="shrink-0 border-t border-slate-200 px-3 py-3 bg-slate-50/80">
-          {renderNavGroup(settingsGroup)}
+        <div className="shrink-0 border-t border-border bg-background px-3 py-3">
+          {renderNavGroup(settings)}
         </div>
       </nav>
     );
@@ -365,7 +357,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       {isMobileOpen && (
         <div className="lg:hidden fixed inset-0 z-[90] flex no-print">
           <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={onCloseMobile}
           />
           <div className="relative w-64 max-w-[85vw] h-full z-10 animate-fade-in-up">

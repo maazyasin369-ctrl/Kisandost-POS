@@ -10,9 +10,23 @@ export default {
     extend: {
       fontFamily: {
         jakarta: ["var(--font-jakarta)", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["'Courier New'", "Courier", "monospace"],
+        sans: ["var(--font-inter)", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-inter)", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
+        primary: "var(--kd-primary)",
+        "primary-foreground": "var(--kd-primary-foreground)",
+        accent: "var(--kd-accent)",
+        background: "var(--kd-background)",
+        foreground: "var(--kd-text)",
+        border: "var(--kd-border)",
+        "muted-foreground": "var(--kd-muted)",
+        success: "var(--kd-success)",
+        warning: "var(--kd-warning)",
+        danger: "var(--kd-danger)",
+        "chart-1": "var(--kd-chart-1)",
+        "chart-2": "var(--kd-chart-2)",
+        "chart-3": "var(--kd-chart-3)",
         // Software Canvas: Soft Crisp Light Slate
         canvas: "#F8FAFC",
         surface: "#FFFFFF",

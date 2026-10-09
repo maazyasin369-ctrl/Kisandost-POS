@@ -44,6 +44,11 @@ import {
   CredentialAuditEntry,
   PendingRegistration,
 } from './types';
+import { DEMO_ID_REMAP } from './id-remap';
+
+/** Bump this when seed UUIDs change so stale localStorage (111/777 ids) is discarded. */
+const DATASTORE_VERSION = 'uuid-v2-2026-10-09';
+const DATASTORE_VERSION_KEY = 'pesticide_datastore_version';
 
 class DataStore {
   private tenants: Tenant[] = [...initialTenants];
@@ -70,10 +75,27 @@ class DataStore {
 
   private isLoaded = false;
 
+  private clearStaleLocalCache() {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('pesticide_') && key !== DATASTORE_VERSION_KEY) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  }
+
   private ensureClientLoaded() {
     if (!this.isLoaded && typeof window !== 'undefined') {
       this.isLoaded = true;
       try {
+        // Drop browser cache that still holds patterned 111/777 demo UUIDs
+        if (localStorage.getItem(DATASTORE_VERSION_KEY) !== DATASTORE_VERSION) {
+          this.clearStaleLocalCache();
+          localStorage.setItem(DATASTORE_VERSION_KEY, DATASTORE_VERSION);
+        }
+
         const storedTenants = localStorage.getItem('pesticide_tenants');
         if (storedTenants) this.tenants = JSON.parse(storedTenants);
 

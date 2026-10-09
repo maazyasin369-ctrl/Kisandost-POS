@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Sale } from '@/lib/types';
+import { Sale, Tenant } from '@/lib/types';
 import { Printer, Share2, Download, CheckCircle, X } from 'lucide-react';
 import { dataStore } from '@/lib/data-store';
 import PrintableReceipt from './PrintableReceipt';
@@ -10,10 +10,11 @@ import { usePrintReceipt } from '@/lib/use-print-receipt';
 interface ReceiptProps {
   sale: Sale;
   onClose: () => void;
+  tenantOverride?: Tenant | null;
 }
 
-export default function ReceiptModal({ sale, onClose }: ReceiptProps) {
-  const tenant = dataStore.getTenant();
+export default function ReceiptModal({ sale, onClose, tenantOverride }: ReceiptProps) {
+  const tenant = tenantOverride ?? dataStore.getTenant();
   const { triggerPrint } = usePrintReceipt();
 
   const handlePrint = () => {
@@ -66,7 +67,7 @@ export default function ReceiptModal({ sale, onClose }: ReceiptProps) {
         <title>Receipt_${sale.sale_number}</title>
         <style>
           @page { size: 80mm auto; margin: 0; }
-          body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 4mm; background: #fff; color: #000; }
+          body { font-family: Inter, system-ui, -apple-system, sans-serif; margin: 0; padding: 4mm; background: #fff; color: #000; display: flex; justify-content: center; }
           .printable-receipt-root { width: 72mm; margin: 0 auto; }
           .tabular-nums { font-variant-numeric: tabular-nums; }
         </style>
@@ -96,24 +97,24 @@ export default function ReceiptModal({ sale, onClose }: ReceiptProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-emerald-200 animate-in fade-in zoom-in duration-200 my-auto">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-[var(--kd-surface)] rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-primary/20 animate-in fade-in zoom-in duration-200 my-auto">
         {/* Header Action Toolbar (hidden on print) */}
-        <div className="bg-emerald-950 text-white p-4 flex items-center justify-between no-print">
+        <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between no-print">
           <div className="flex items-center space-x-2">
-            <CheckCircle className="h-5 w-5 text-emerald-400" />
+            <CheckCircle className="h-5 w-5 text-primary" />
             <span className="font-bold text-sm">Sale Receipt ({sale.sale_number})</span>
           </div>
-          <button onClick={onClose} className="text-emerald-300 hover:text-white p-1 cursor-pointer">
+          <button onClick={onClose} className="text-primary hover:text-white p-1 cursor-pointer">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Action Buttons (hidden on print) */}
-        <div className="p-3 bg-emerald-50 border-b border-emerald-100 flex flex-wrap gap-2 no-print">
+        <div className="p-3 bg-[var(--kd-primary-soft)] border-b border-emerald-100 flex flex-wrap gap-2 no-print">
           <button
             onClick={handlePrint}
-            className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 shadow-sm cursor-pointer"
+            className="flex-1 bg-primary text-primary-foreground hover:opacity-90 text-white font-semibold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 shadow-[var(--kd-shadow)] cursor-pointer"
           >
             <Printer className="h-4 w-4" />
             <span>Print Thermal ({tenant.settings?.print_settings?.paper_width ?? '80mm'})</span>
@@ -121,7 +122,7 @@ export default function ReceiptModal({ sale, onClose }: ReceiptProps) {
 
           <button
             onClick={handleWhatsAppShare}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 shadow-sm cursor-pointer"
+            className="flex-1 bg-primary hover:bg-primary text-primary-foreground text-white font-semibold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 shadow-[var(--kd-shadow)] cursor-pointer"
           >
             <Share2 className="h-4 w-4" />
             <span>Share WhatsApp</span>
@@ -129,7 +130,7 @@ export default function ReceiptModal({ sale, onClose }: ReceiptProps) {
 
           <button
             onClick={handlePDFExport}
-            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 cursor-pointer"
+            className="bg-[var(--kd-surface)] border border-border hover:bg-[var(--kd-primary-soft)] text-foreground font-semibold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 cursor-pointer"
           >
             <Download className="h-4 w-4" />
             <span>PDF</span>
@@ -137,17 +138,17 @@ export default function ReceiptModal({ sale, onClose }: ReceiptProps) {
         </div>
 
         {/* Receipt Content Container - Exact layout used for both screen modal and print */}
-        <div className="p-4 bg-slate-100/70 flex justify-center max-h-[70vh] overflow-y-auto">
-          <div className="bg-white shadow-md border border-slate-300 p-2 rounded">
-            <PrintableReceipt type="sale" sale={sale} />
+        <div className="p-4 bg-background/70 flex justify-center max-h-[70vh] overflow-y-auto">
+          <div className="bg-[var(--kd-surface)] shadow-md border border-border p-2 rounded">
+            <PrintableReceipt type="sale" sale={sale} tenantOverride={tenant} />
           </div>
         </div>
 
         {/* Footer Close Button (hidden on print) */}
-        <div className="p-3 bg-slate-100 border-t border-slate-200 text-right no-print">
+        <div className="p-3 bg-background border-t border-border text-right no-print">
           <button
             onClick={onClose}
-            className="bg-slate-800 hover:bg-slate-900 text-white font-semibold py-1.5 px-4 rounded-lg text-xs cursor-pointer"
+            className="bg-slate-800 hover:opacity-90 text-white font-semibold py-1.5 px-4 rounded-lg text-xs cursor-pointer"
           >
             Done &amp; Close
           </button>

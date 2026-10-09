@@ -199,6 +199,55 @@ export async function receivePurchase(purchaseId: string, branchId: string) {
 
 // ─── Stock Transfers ──────────────────────────────────────────────────────────
 
+async function requireMultiBranch() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sign in to continue.' as const }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, tenant_id')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (!profile) return { error: 'No shop profile.' as const }
+  const { data: features } = await supabase
+    .from('tenant_features')
+    .select('multi_branch')
+    .eq('tenant_id', profile.tenant_id)
+    .maybeSingle()
+  if (features?.multi_branch !== true) {
+    return { error: 'Multi-branch is not enabled for this shop.' as const }
+  }
+  return { supabase, profile }
+}
+
+export async function getTransferWorkspace() {
+  const access = await requireMultiBranch()
+  if ('error' in access) return access
+
+  const { supabase, profile } = access
+  const [{ data: branches }, { data: batches }, { data: transfers }] = await Promise.all([
+    supabase.from('branches').select('id, name').eq('tenant_id', profile.tenant_id).eq('is_active', true).order('name'),
+    supabase.from('batches').select('id, batch_number, quantity_current, products(name)').gt('quantity_current', 0).order('batch_number'),
+    supabase
+      .from('stock_transfers')
+      .select('id, status, created_at, from_branch:from_branch_id(name), to_branch:to_branch_id(name)')
+      .eq('tenant_id', profile.tenant_id)
+      .order('created_at', { ascending: false }),
+  ])
+
+  return {
+    branches: branches ?? [],
+    batches: (batches ?? []).map((batch) => {
+      const product = Array.isArray(batch.products) ? batch.products[0] : batch.products
+      return {
+        id: batch.id,
+        label: `${product?.name ?? 'Product'} · ${batch.batch_number} · ${batch.quantity_current} left`,
+      }
+    }),
+    transfers: transfers ?? [],
+  }
+}
+
 export async function getStockTransfers(tenantId: string) {
   const supabase = await createClient()
   const { data } = await supabase
@@ -221,15 +270,18 @@ export async function createStockTransfer(input: {
   requestedBy: string
   items: { batchId: string; quantity: number }[]
 }) {
-  const supabase = await createClient()
+  const access = await requireMultiBranch()
+  if ('error' in access) return { error: access.error }
+  const { supabase, profile } = access
+  if (input.fromBranchId === input.toBranchId) return { error: 'Choose two different outlets.' }
 
   const { data: transfer, error } = await supabase
     .from('stock_transfers')
     .insert({
-      tenant_id: input.tenantId,
+      tenant_id: profile.tenant_id,
       from_branch_id: input.fromBranchId,
       to_branch_id: input.toBranchId,
-      requested_by: input.requestedBy,
+      requested_by: profile.id,
       status: 'pending',
     })
     .select('id')
@@ -250,7 +302,9 @@ export async function createStockTransfer(input: {
 }
 
 export async function approveStockTransfer(transferId: string, receivedBy: string) {
-  const supabase = await createClient()
+  const access = await requireMultiBranch()
+  if ('error' in access) return { error: access.error }
+  const { supabase, profile } = access
 
   const { data: transfer } = await supabase
     .from('stock_transfers')
@@ -258,7 +312,7 @@ export async function approveStockTransfer(transferId: string, receivedBy: strin
     .eq('id', transferId)
     .single()
 
-  if (!transfer) return { error: 'Transfer not found' }
+  if (!transfer || transfer.tenant_id !== profile.tenant_id) return { error: 'Transfer not found' }
 
   const { data: items } = await supabase
     .from('stock_transfer_items')
@@ -275,7 +329,10 @@ export async function approveStockTransfer(transferId: string, receivedBy: strin
       .eq('id', item.batch_id)
       .single()
 
-    if (!sourceBatch) continue
+    if (!sourceBatch) return { error: 'Source batch was not found.' }
+    if (sourceBatch.quantity_current < item.quantity) {
+      return { error: 'Not enough stock in the source outlet.' }
+    }
 
     await supabase
       .from('batches')
@@ -315,7 +372,7 @@ export async function approveStockTransfer(transferId: string, receivedBy: strin
     .from('stock_transfers')
     .update({
       status: 'received',
-      received_by: receivedBy,
+      received_by: profile.id,
       received_at: new Date().toISOString(),
     })
     .eq('id', transferId)

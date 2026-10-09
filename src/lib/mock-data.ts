@@ -21,7 +21,7 @@ import {
 
 
 export const demoTenant1: Tenant = {
-  id: '11111111-1111-1111-1111-111111111111',
+  id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
   business_name: 'Pak Agro Chemical & Pesticide Network',
   owner_name: 'Chaudhry Tariq Mehmood',
   phone: '+92 300 1234567',
@@ -51,7 +51,7 @@ export const demoTenant1: Tenant = {
 };
 
 export const demoTenant2: Tenant = {
-  id: '22222222-2222-2222-2222-222222222222',
+  id: 'd2e1b6a3-b48e-4c98-a7fc-940f66e00d11',
   business_name: 'Kisan Zarai Markaz & Seeds',
   owner_name: 'Mian Shahid Rasheed',
   phone: '+92 301 7654321',
@@ -85,8 +85,8 @@ export const initialTenant: Tenant = demoTenant1;
 
 export const initialBranches: Branch[] = [
   {
-    id: '22222222-2222-2222-2222-222222222222',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    id: '87536177-63d4-4250-9e71-4c93048ab9ee',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     name: 'Multan Grains Market Branch',
     address: 'Shop 14-B, Galla Mandi, Vehari Road, Multan',
     phone: '+92 300 1234567',
@@ -94,8 +94,8 @@ export const initialBranches: Branch[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '22222222-2222-2222-2222-333333333333',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    id: '51112311-17ce-4c27-ba5a-b0675500c806',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     name: 'Khanewal Bypass Branch',
     address: 'Plot 4, Khanewal Road, Multan',
     phone: '+92 301 7654321',
@@ -103,8 +103,8 @@ export const initialBranches: Branch[] = [
     created_at: '2024-03-15T00:00:00Z'
   },
   {
-    id: 'branch-003',
-    tenant_id: '22222222-2222-2222-2222-222222222222',
+    id: '37fe5c39-e5a3-4f46-897d-0e0339438dd9',
+    tenant_id: 'd2e1b6a3-b48e-4c98-a7fc-940f66e00d11',
     name: 'Sahiwal High Street Outlet',
     address: 'Shop 42, High Street, Sahiwal',
     phone: '+92 301 7654321',
@@ -116,7 +116,7 @@ export const initialBranches: Branch[] = [
 export const initialProfiles: Profile[] = [
   {
     id: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     full_name: 'Chaudhry Tariq Mehmood',
     phone: '+92 300 1234567',
     role: 'owner',
@@ -125,7 +125,7 @@ export const initialProfiles: Profile[] = [
   },
   {
     id: 'usr-mgr1',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     full_name: 'Muhammad Asif (Manager)',
     phone: '+92 302 9988776',
     role: 'branch_manager',
@@ -134,7 +134,7 @@ export const initialProfiles: Profile[] = [
   },
   {
     id: 'usr-sales1',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     full_name: 'Ali Raza (Salesman)',
     phone: '+92 303 5544332',
     role: 'salesman',
@@ -145,8 +145,8 @@ export const initialProfiles: Profile[] = [
 
 export const initialCompanies: Company[] = [
   {
-    id: '33333333-3333-3333-3333-111111111111',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    id: 'fa1d9359-a86c-43f7-8eda-9d4bf52210d9',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     name: 'Bayer CropScience',
     contact_person: 'Shahid Mehmood (TSM)',
     phone: '+92 321 4455667',
@@ -154,8 +154,8 @@ export const initialCompanies: Company[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '33333333-3333-3333-3333-222222222222',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    id: '5a1ca7b6-9936-459f-ab66-fbbf71f8c0eb',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     name: 'Syngenta Pakistan',
     contact_person: 'Usman Ali',
     phone: '+92 300 8877665',
@@ -163,8 +163,8 @@ export const initialCompanies: Company[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '33333333-3333-3333-3333-333333333333',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    id: '38556cbb-aa91-419f-8a3a-86f46d435f41',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     name: 'FMC United Chemical',
     contact_person: 'Kamran Bhatti',
     phone: '+92 312 9900112',
@@ -172,8 +172,8 @@ export const initialCompanies: Company[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '33333333-3333-3333-3333-444444444444',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    id: '35ed1d39-2160-4130-aec5-eeb55f5669a0',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     name: 'Tara Crop Science (Local)',
     contact_person: 'Rana Sohail',
     phone: '+92 301 3344556',
@@ -184,9 +184,9 @@ export const initialCompanies: Company[] = [
 
 export const initialProducts: Product[] = [
   {
-    id: '44444444-4444-4444-4444-111111111111',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    company_id: '33333333-3333-3333-3333-111111111111',
+    id: '5423d79c-a868-40d7-b0a5-817ef307eada',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    company_id: 'fa1d9359-a86c-43f7-8eda-9d4bf52210d9',
     company_name: 'Bayer CropScience',
     name: 'Confidor 200 SL (Imidacloprid)',
     active_ingredient: 'Imidacloprid 200g/L',
@@ -199,9 +199,9 @@ export const initialProducts: Product[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '44444444-4444-4444-4444-222222222222',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    company_id: '33333333-3333-3333-3333-333333333333',
+    id: '36dfc331-8315-4d3c-abd8-ed981db7016e',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    company_id: '38556cbb-aa91-419f-8a3a-86f46d435f41',
     company_name: 'FMC United Chemical',
     name: 'Coragen 20 SC (Chlorantraniliprole)',
     active_ingredient: 'Chlorantraniliprole 200g/L',
@@ -214,9 +214,9 @@ export const initialProducts: Product[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '44444444-4444-4444-4444-333333333333',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    company_id: '33333333-3333-3333-3333-222222222222',
+    id: '20a6e8a2-7cf9-41fe-bc64-ff829770edf4',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    company_id: '5a1ca7b6-9936-459f-ab66-fbbf71f8c0eb',
     company_name: 'Syngenta Pakistan',
     name: 'Match 50 EC (Lufenuron)',
     active_ingredient: 'Lufenuron 50g/L',
@@ -229,9 +229,9 @@ export const initialProducts: Product[] = [
     created_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '44444444-4444-4444-4444-444444444444',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    company_id: '33333333-3333-3333-3333-444444444444',
+    id: '1d286fc1-3b43-49e6-82db-eacb12dee1be',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    company_id: '35ed1d39-2160-4130-aec5-eeb55f5669a0',
     company_name: 'Tara Crop Science (Local)',
     name: 'Tara Emamectin Benzoate 1.9 EC',
     active_ingredient: 'Emamectin Benzoate 19g/L',
@@ -245,8 +245,8 @@ export const initialProducts: Product[] = [
   },
   {
     id: 'prod-005',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    company_id: '33333333-3333-3333-3333-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    company_id: 'fa1d9359-a86c-43f7-8eda-9d4bf52210d9',
     company_name: 'Bayer CropScience',
     name: 'Nativo 75 WG (Tebuconazole + Trifloxystrobin)',
     active_ingredient: 'Tebuconazole 50% + Trifloxystrobin 25%',
@@ -262,9 +262,9 @@ export const initialProducts: Product[] = [
 
 export const initialBatches: Batch[] = [
   {
-    id: '55555555-5555-5555-5555-111111111111',
-    product_id: '44444444-4444-4444-4444-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: '64b99f7b-ef8e-4de5-b290-dc3daa36c26b',
+    product_id: '5423d79c-a868-40d7-b0a5-817ef307eada',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     batch_number: 'BAY-2025-09A',
     manufacture_date: '2025-01-10',
     expiry_date: '2026-11-30', // FEFO nearest expiry
@@ -277,9 +277,9 @@ export const initialBatches: Batch[] = [
     company_name: 'Bayer CropScience'
   },
   {
-    id: 'batch-002',
-    product_id: '44444444-4444-4444-4444-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: 'dbb3b773-decf-439d-9ece-085f6d303e37',
+    product_id: '5423d79c-a868-40d7-b0a5-817ef307eada',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     batch_number: 'BAY-2025-12B',
     manufacture_date: '2025-02-01',
     expiry_date: '2027-02-28', // Later expiry
@@ -292,9 +292,9 @@ export const initialBatches: Batch[] = [
     company_name: 'Bayer CropScience'
   },
   {
-    id: '55555555-5555-5555-5555-222222222222',
-    product_id: '44444444-4444-4444-4444-222222222222',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: '683290a2-5c6d-4c75-8848-5111f0eab647',
+    product_id: '36dfc331-8315-4d3c-abd8-ed981db7016e',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     batch_number: 'FMC-COR-441',
     manufacture_date: '2025-01-01',
     expiry_date: '2026-09-15', // Expiring in ~1 month!
@@ -307,9 +307,9 @@ export const initialBatches: Batch[] = [
     company_name: 'FMC United Chemical'
   },
   {
-    id: '55555555-5555-5555-5555-333333333333',
-    product_id: '44444444-4444-4444-4444-333333333333',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: 'f68bfb80-49a9-4666-8656-cf3b520b5032',
+    product_id: '20a6e8a2-7cf9-41fe-bc64-ff829770edf4',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     batch_number: 'SYN-MAT-102',
     manufacture_date: '2025-02-15',
     expiry_date: '2027-01-10',
@@ -322,9 +322,9 @@ export const initialBatches: Batch[] = [
     company_name: 'Syngenta Pakistan'
   },
   {
-    id: 'batch-005',
-    product_id: '44444444-4444-4444-4444-444444444444',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: 'cce8f2fb-89f1-460e-bcd3-c812cfd50450',
+    product_id: '1d286fc1-3b43-49e6-82db-eacb12dee1be',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     batch_number: 'TARA-EMA-77',
     manufacture_date: '2025-03-01',
     expiry_date: '2026-12-31',
@@ -337,9 +337,9 @@ export const initialBatches: Batch[] = [
     company_name: 'Tara Crop Science (Local)'
   },
   {
-    id: 'batch-006',
+    id: '80460b89-6975-45f4-970b-4fb3efb45b9d',
     product_id: 'prod-005',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     batch_number: 'BAY-NAT-801',
     manufacture_date: '2025-01-20',
     expiry_date: '2027-05-20',
@@ -355,9 +355,9 @@ export const initialBatches: Batch[] = [
 
 export const initialCustomers: Customer[] = [
   {
-    id: '77777777-7777-7777-7777-111111111111',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: '91983567-7716-46f3-95f3-b1fb3200a0d2',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     name: 'Malik Mohammad Akram',
     phone: '+92 300 9876543',
     address: 'Mouza Shahpur, Tehsil Multan',
@@ -369,9 +369,9 @@ export const initialCustomers: Customer[] = [
     created_at: '2024-01-15T00:00:00Z'
   },
   {
-    id: '77777777-7777-7777-7777-222222222222',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: '62698630-9167-46ce-b631-4f8d479fc1d2',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     name: 'Rana Zulfiqar Ali',
     phone: '+92 302 1122334',
     address: 'Chak 21-MR, Multan',
@@ -383,9 +383,9 @@ export const initialCustomers: Customer[] = [
     created_at: '2024-02-10T00:00:00Z'
   },
   {
-    id: '77777777-7777-7777-7777-333333333333',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: 'a6dbfbaf-d55b-48d7-ad2f-f9f4f68d3b2c',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     name: 'Haji Ghulam Rasool',
     phone: '+92 304 5566778',
     address: 'Basti Malook, Lodhran Road',
@@ -397,9 +397,9 @@ export const initialCustomers: Customer[] = [
     created_at: '2024-01-05T00:00:00Z'
   },
   {
-    id: 'cust-004',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    id: '43f5bf63-2c70-4d8b-81ae-303c90d0cd13',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     name: 'Jam Sajjad Hussain',
     phone: '+92 306 4433221',
     address: 'Khad Factory Area, Multan',
@@ -412,8 +412,8 @@ export const initialCustomers: Customer[] = [
   },
   {
     id: 'cust-maaz',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     name: 'Maaz Yasin',
     phone: '+92 300 7766554',
     address: 'Basti Malook, Multan',
@@ -429,11 +429,11 @@ export const initialCustomers: Customer[] = [
 export const initialSales: Sale[] = [
   {
     id: 'sale-001',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     branch_name: 'Multan Grains Market Branch',
     sale_number: 'MUL-0104',
-    customer_id: '77777777-7777-7777-7777-111111111111',
+    customer_id: '91983567-7716-46f3-95f3-b1fb3200a0d2',
     customer_name: 'Malik Mohammad Akram',
     customer_phone: '+92 300 9876543',
     sold_by: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
@@ -450,7 +450,7 @@ export const initialSales: Sale[] = [
       {
         id: 'si-001',
         sale_id: 'sale-001',
-        batch_id: '55555555-5555-5555-5555-111111111111',
+        batch_id: '64b99f7b-ef8e-4de5-b290-dc3daa36c26b',
         product_name_snapshot: 'Confidor 200 SL (Imidacloprid)',
         quantity: 10,
         unit_price: 1850,
@@ -463,11 +463,11 @@ export const initialSales: Sale[] = [
   },
   {
     id: 'sale-002',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    branch_id: '22222222-2222-2222-2222-222222222222',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    branch_id: '87536177-63d4-4250-9e71-4c93048ab9ee',
     branch_name: 'Multan Grains Market Branch',
     sale_number: 'MUL-0105',
-    customer_id: '77777777-7777-7777-7777-222222222222',
+    customer_id: '62698630-9167-46ce-b631-4f8d479fc1d2',
     customer_name: 'Rana Zulfiqar Ali',
     customer_phone: '+92 302 1122334',
     sold_by: 'edb3eddc-3806-444c-9cfb-4291bb7d4124',
@@ -484,7 +484,7 @@ export const initialSales: Sale[] = [
       {
         id: 'si-002',
         sale_id: 'sale-002',
-        batch_id: '55555555-5555-5555-5555-222222222222',
+        batch_id: '683290a2-5c6d-4c75-8848-5111f0eab647',
         product_name_snapshot: 'Coragen 20 SC (Chlorantraniliprole)',
         quantity: 2,
         unit_price: 2750,
@@ -500,8 +500,8 @@ export const initialSales: Sale[] = [
 export const initialLedger: CreditLedgerEntry[] = [
   {
     id: 'ledg-001',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    customer_id: '77777777-7777-7777-7777-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
+    customer_id: '91983567-7716-46f3-95f3-b1fb3200a0d2',
     customer_name: 'Malik Mohammad Akram',
     sale_id: 'sale-001',
     sale_number: 'MUL-0104',
@@ -513,7 +513,7 @@ export const initialLedger: CreditLedgerEntry[] = [
   },
   {
     id: 'ledg-mz-001',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     customer_id: 'cust-maaz',
     customer_name: 'Maaz Yasin',
     type: 'payment',
@@ -524,7 +524,7 @@ export const initialLedger: CreditLedgerEntry[] = [
   },
   {
     id: 'ledg-mz-002',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     customer_id: 'cust-maaz',
     customer_name: 'Maaz Yasin',
     type: 'sale_credit',
@@ -719,7 +719,7 @@ export const initialDayClosings: DayClosing[] = [
 export const initialBillingTerms: TenantBillingTerms[] = [
   {
     id: 'term-1',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     installation_charges: 15000,
     installation_date: '2024-01-01',
     recurring_amount: 5000,
@@ -732,7 +732,7 @@ export const initialBillingTerms: TenantBillingTerms[] = [
   },
   {
     id: 'term-2',
-    tenant_id: '22222222-2222-2222-2222-222222222222',
+    tenant_id: 'd2e1b6a3-b48e-4c98-a7fc-940f66e00d11',
     installation_charges: 25000,
     installation_date: '2025-02-15',
     recurring_amount: 30000,
@@ -748,7 +748,7 @@ export const initialBillingTerms: TenantBillingTerms[] = [
 export const initialTenantPayments: TenantPaymentRecord[] = [
   {
     id: 'pay-001',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     payment_type: 'recurring',
     amount: 5000,
     payment_date: '2026-08-26',
@@ -760,7 +760,7 @@ export const initialTenantPayments: TenantPaymentRecord[] = [
   },
   {
     id: 'pay-002',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     payment_type: 'recurring',
     amount: 5000,
     payment_date: '2026-07-26',
@@ -772,7 +772,7 @@ export const initialTenantPayments: TenantPaymentRecord[] = [
   },
   {
     id: 'pay-003',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
+    tenant_id: '9a9760e9-d361-4e9b-8c9b-17d60a0c8ce6',
     payment_type: 'installation',
     amount: 15000,
     payment_date: '2024-01-01',
@@ -784,7 +784,7 @@ export const initialTenantPayments: TenantPaymentRecord[] = [
   },
   {
     id: 'pay-004',
-    tenant_id: '22222222-2222-2222-2222-222222222222',
+    tenant_id: 'd2e1b6a3-b48e-4c98-a7fc-940f66e00d11',
     payment_type: 'recurring',
     amount: 30000,
     payment_date: '2025-09-22',
@@ -796,7 +796,7 @@ export const initialTenantPayments: TenantPaymentRecord[] = [
   },
   {
     id: 'pay-005',
-    tenant_id: '22222222-2222-2222-2222-222222222222',
+    tenant_id: 'd2e1b6a3-b48e-4c98-a7fc-940f66e00d11',
     payment_type: 'installation',
     amount: 25000,
     payment_date: '2025-02-15',

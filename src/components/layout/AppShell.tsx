@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import TopHeader from './TopHeader';
 import Sidebar from './Sidebar';
+import { ShopChromeProvider } from './ShopChrome';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [selectedBranchId, setSelectedBranchId] = useState('all');
 
   // POS gets maximum counter workspace — collapse sidebar automatically
   useEffect(() => {
@@ -24,11 +24,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // Auth routes & Super Admin routes render without shop tenant chrome
   if (pathname === '/login' || pathname === '/signup' || pathname.startsWith('/admin')) {
-    return <main className="min-h-screen bg-slate-950">{children}</main>;
+    return <main className="min-h-screen bg-background text-foreground">{children}</main>;
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-jakarta antialiased">
+    <ShopChromeProvider>
+    <div className="min-h-screen bg-background text-foreground font-sans antialiased">
       {/* Full-height sidebar */}
       <Sidebar
         isCollapsed={isCollapsed}
@@ -49,7 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           zIndex: 9999,
           transition: 'left 200ms ease-in-out',
         }}
-        className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full bg-slate-950 hover:bg-slate-900 active:bg-black text-amber-400 shadow-md ring-2 ring-white hover:scale-110 active:scale-95 cursor-pointer no-print"
+        className="hidden lg:flex size-8 cursor-pointer items-center justify-center rounded-full border border-border bg-[var(--kd-surface)] text-foreground shadow-[var(--kd-shadow)] no-print"
       >
         {isCollapsed
           ? <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
@@ -62,14 +63,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           isCollapsed ? 'lg:pl-16' : 'lg:pl-64'
         }`}
       >
-        <TopHeader
-          onToggleMobileSidebar={() => setIsMobileOpen(true)}
-          selectedBranchId={selectedBranchId}
-          onSelectBranch={setSelectedBranchId}
-        />
+        <Suspense fallback={<div className="h-16 border-b border-border bg-[var(--kd-surface)]" />}>
+          <TopHeader
+            onToggleMobileSidebar={() => setIsMobileOpen(true)}
+          />
+        </Suspense>
 
         {/* Main workspace */}
-        <main className="flex-1 min-w-0 bg-white">
+        <main className="min-w-0 flex-1 bg-background">
           <div className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {children}
@@ -78,5 +79,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </ShopChromeProvider>
   );
 }
